@@ -1,0 +1,95 @@
+﻿<Window x:Class="SiteBlocker.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SiteBlocker" Height="520" Width="720" MinWidth="560" MinHeight="420">
+    <Grid Margin="16">
+
+        <!-- First run: choose the password that guards unblocking and uninstalling. -->
+        <StackPanel x:Name="SetupPanel" Visibility="Collapsed" MaxWidth="360" VerticalAlignment="Center">
+            <TextBlock Text="Choose a password" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <TextBlock TextWrapping="Wrap" Margin="0,0,0,12"
+                       Text="You will need it to unblock a site, change a rule or uninstall SiteBlocker. Store it somewhere you cannot reach easily." />
+            <PasswordBox x:Name="NewPassword" Margin="0,0,0,8" />
+            <PasswordBox x:Name="ConfirmPassword" Margin="0,0,0,12" />
+            <Button Content="Save password" Click="SavePassword_Click" Padding="8,4" />
+        </StackPanel>
+
+        <Grid x:Name="MainPanel" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Blocked sites" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,8" />
+
+            <ListView x:Name="RuleList" Grid.Row="1">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Domain" Width="200" DisplayMemberBinding="{Binding Domain}" />
+                        <GridViewColumn Header="Mode" Width="130" DisplayMemberBinding="{Binding ModeText}" />
+                        <GridViewColumn Header="Allowed paths" Width="300" DisplayMemberBinding="{Binding PathsText}" />
+                    </GridView>
+                </ListView.View>
+            </ListView>
+
+            <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Domain" />
+                        <TextBox x:Name="DomainBox" ToolTip="e.g. facebook.com" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                        <TextBlock Text="Mode" />
+                        <ComboBox x:Name="ModeBox" SelectedIndex="0">
+                            <ComboBoxItem Content="Block everything" />
+                            <ComboBoxItem Content="Block, with exceptions" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Allowed paths (comma separated)" />
+                        <TextBox x:Name="PathsBox" ToolTip="e.g. /marketplace*" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <Button Content="Add" Click="Add_Click" Padding="14,4" Margin="0,0,8,0" />
+                    <Button Content="Save changes to selected (password)" Click="Update_Click" Padding="10,4" Margin="0,0,8,0" />
+                    <Button Content="Remove selected (password)" Click="Remove_Click" Padding="10,4" />
+                </StackPanel>
+
+                <Expander Header="Extension protection (stops the browser extension being disabled or removed)" Margin="0,12,0,0">
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock x:Name="ProtectionState" Margin="0,0,0,6" />
+                        <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,6"
+                                   Text="Needs the extension published on the Chrome Web Store / Edge Add-ons. Paste the 32-letter ID each store gives you. Chrome ID also covers Brave." />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Chrome Web Store ID (Chrome and Brave)" />
+                                <TextBox x:Name="ChromeIdBox" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Edge Add-ons ID (optional)" />
+                                <TextBox x:Name="EdgeIdBox" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="Turn on protection" Click="EnableProtection_Click" Padding="10,4" Margin="0,0,8,0" />
+                            <Button Content="Turn off protection (password)" Click="DisableProtection_Click" Padding="10,4" />
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+                <TextBlock x:Name="StatusText" Margin="0,8,0,0" Foreground="Gray" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

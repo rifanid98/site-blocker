@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SiteBlocker.Core\SiteBlocker.Core.csproj" />
+    <!-- Builds the native host and copies its exe next to the app so it can be registered with the browsers. -->
+    <ProjectReference Include="..\SiteBlocker.NativeHost\SiteBlocker.NativeHost.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- A referenced project's apphost exe is not copied automatically; copy the native host files by hand. -->
+  <Target Name="CopyNativeHost" AfterTargets="Build">
+    <PropertyGroup>
+      <NativeHostOut>$(MSBuildProjectDirectory)\..\SiteBlocker.NativeHost\bin\$(Configuration)\net8.0\</NativeHostOut>
+    </PropertyGroup>
+    <ItemGroup>
+      <NativeHostFiles Include="$(NativeHostOut)SiteBlocker.NativeHost.exe;$(NativeHostOut)SiteBlocker.NativeHost.runtimeconfig.json;$(NativeHostOut)SiteBlocker.NativeHost.deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(NativeHostFiles)" DestinationFolder="$(OutDir)" />
+  </Target>
+
+</Project>

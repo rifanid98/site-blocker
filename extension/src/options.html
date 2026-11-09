@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiteBlocker</title>
+  <style>
+    :root {
+      --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
+      --accent: #2563eb; --danger: #dc2626; --ok: #15803d;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0b1220; --card: #131c2e; --text: #f1f5f9; --muted: #94a3b8; --line: #243049; --accent: #60a5fa; --danger: #f87171; --ok: #4ade80; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    h2 { font-size: 17px; margin: 0 0 12px; }
+    .sub { color: var(--muted); margin: 0 0 20px; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+    .row > label { flex: 1 1 160px; display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 4px; }
+    input, select, button { font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+    button { cursor: pointer; background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.secondary { background: transparent; color: var(--text); border-color: var(--line); }
+    button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 12px; color: var(--muted); font-weight: 600; border-top: 0; }
+    td.actions { white-space: nowrap; text-align: right; }
+    .empty { color: var(--muted); margin: 12px 0 0; }
+    .tag { font-size: 12px; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 12px; }
+    .chip button { padding: 0 8px; border-radius: 999px; line-height: 1.5; }
+    textarea { width: 100%; font: 13px/1.4 ui-monospace, Consolas, monospace; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); resize: vertical; }
+    #previewFrame { width: 100%; height: 260px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+    label.switch { flex-direction: row; align-items: center; gap: 8px; font-size: 15px; color: var(--text); }
+    label.switch input { width: 18px; height: 18px; padding: 0; }
+    #status { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 6px 0; min-height: 1.4em; margin: 0 0 12px; }
+    #status.error, .tag.error { color: var(--danger); }
+    #status.ok, .tag.ok { color: var(--ok); }
+    dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); padding: 20px; width: min(360px, 92vw); }
+    dialog::backdrop { background: rgba(0, 0, 0, .5); }
+    dialog form { display: flex; flex-direction: column; gap: 12px; }
+    dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>SiteBlocker</h1>
+  <p class="sub">Block sites and keywords. Adding is free; removing or editing needs your password.</p>
+  <p id="status" role="status"></p>
+
+  <section id="setup" hidden>
+    <h2>Choose a password</h2>
+    <p class="sub">You will need it to remove or edit anything below. Pick something you will not type on impulse.</p>
+    <div class="row">
+      <label>Password <input id="pw1" type="password" autocomplete="new-password"></label>
+      <label>Repeat password <input id="pw2" type="password" autocomplete="new-password"></label>
+      <button id="savePassword" type="button">Save password</button>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <section>
+      <h2>Blocked sites</h2>
+      <div class="row">
+        <label>Domain <input id="domain" placeholder="facebook.com" autocomplete="off"></label>
+        <label>Mode
+          <select id="mode">
+            <option value="blockAll">Block everything</option>
+            <option value="blockExcept">Block, with exceptions</option>
+          </select>
+        </label>
+        <label>Allowed paths (comma separated) <input id="paths" placeholder="/marketplace*" autocomplete="off"></label>
+        <label class="switch"><input id="ruleForbidden" type="checkbox"> Forbidden</label>
+        <button id="saveRule" type="button">Add</button>
+        <button id="cancelEdit" type="button" class="secondary" hidden>Cancel</button>
+      </div>
+      <p class="tag">Exceptions need a trailing * to include everything below the path, e.g. <code>/marketplace*</code>. <strong>Forbidden</strong> sites trigger shutdown mode when opened (see below); other blocked sites only show the block screen.</p>
+      <table>
+        <thead><tr><th>Domain</th><th>Mode</th><th>Allowed paths</th><th>Forbidden</th><th></th></tr></thead>
+        <tbody id="ruleRows"></tbody>
+      </table>
+      <p id="noRules" class="empty" hidden>No sites yet.</p>
+    </section>
+
+    <section>
+      <h2>Blocked keywords</h2>
+      <p class="sub">Any web address that contains one of these words is blocked, including search queries.</p>
+      <div class="row">
+        <label>Keyword <input id="keyword" placeholder="casino" autocomplete="off"></label>
+        <label class="switch"><input id="keywordForbidden" type="checkbox"> Forbidden</label>
+        <button id="addKeyword" type="button">Add</button>
+      </div>
+      <p class="tag">A <strong>forbidden</strong> keyword triggers shutdown mode when a page matches it; it is marked with a red flag below. Click the flag to turn it on or off (turning it off needs your password).</p>
+      <div id="keywordChips" class="chips"></div>
+      <p id="noKeywords" class="empty" hidden>No keywords yet.</p>
+
+      <h2 style="margin-top: 20px;">Keyword exceptions</h2>
+      <p class="sub">Websites listed here are never checked for keywords (their subdomains too), so a word like <code>av</code> will not block <code>github.com/.../wave-4</code>. Site rules still apply to them. Adding an exception needs your password; removing one does not.</p>
+      <div class="row">
+        <label>Domain <input id="exemptDomain" placeholder="github.com" autocomplete="off"></label>
+        <button id="addExempt" type="button">Add exception (password)</button>
+      </div>
+      <div id="exemptChips" class="chips"></div>
+      <p id="noExempt" class="empty" hidden>No exceptions yet.</p>
+    </section>
+
+    <section>
+      <h2>Unlock countdown</h2>
+      <p class="sub">When on, a blocked page first shows a countdown that looks like the site is about to open. When it reaches zero, the real outcome happens: the block screen or a redirect. Forbidden sites and keywords skip the countdown entirely and shut the PC down at once while shutdown mode is on. Turning it on is free; turning it off needs your password.</p>
+      <div class="row">
+        <label class="switch"><input id="unlockToggle" type="checkbox"> Show an unlock countdown first</label>
+        <label>Countdown (seconds, 1 to 300) <input id="unlockSeconds" type="number" min="1" max="300" step="1" value="10"></label>
+      </div>
+      <p class="tag">The length is fixed while the countdown is on.</p>
+    </section>
+
+    <section>
+      <h2>Custom blocked page</h2>
+      <p class="sub">Replace the built-in block screen with your own. Switch it off any time to go back to the built-in one. Use <code>{{url}}</code> for the blocked address and <code>{{host}}</code> for just the site name.</p>
+      <div class="row">
+        <label class="switch"><input id="customToggle" type="checkbox"> Use my own blocked page</label>
+      </div>
+      <div id="customEditor" hidden>
+        <div class="row" style="margin-top: 12px;">
+          <label style="flex-basis: 100%;">HTML (the page body)
+            <textarea id="customHtml" rows="8" spellcheck="false" placeholder="<h1>Not today</h1><p>{{host}} is blocked.</p>"></textarea>
+          </label>
+          <label style="flex-basis: 100%;">CSS
+            <textarea id="customCss" rows="6" spellcheck="false" placeholder="body { background: #111; color: #eee; text-align: center; }"></textarea>
+          </label>
+        </div>
+        <div class="row" style="margin-top: 12px;">
+          <button id="customSave" type="button">Save custom page</button>
+          <button id="customExample" type="button" class="secondary">Insert example</button>
+        </div>
+        <p class="tag">For safety, scripts, frames, forms, <code>&lt;style&gt;</code> and <code>&lt;link&gt;</code> are removed from your HTML, and only <code>http(s)</code> links and images are kept. Put styling in the CSS box. Pages that block inline images may not show them. Your page is used once you press Save.</p>
+        <p class="tag" style="margin-top: 12px;">Preview</p>
+        <iframe id="previewFrame" title="Custom blocked page preview" sandbox="allow-same-origin"></iframe>
+      </div>
+    </section>
+
+    <section>
+      <h2>Redirect mode</h2>
+      <p class="sub">When on, opening a blocked page sends you to the page below instead of showing the block screen. Turning it on is free; turning it off needs your password.</p>
+      <div class="row">
+        <label class="switch"><input id="redirectToggle" type="checkbox"> Redirect blocked pages</label>
+        <label>Redirect to <input id="redirectUrl" placeholder="wikipedia.org" autocomplete="off"></label>
+        <button id="redirectApply" type="button" hidden>Turn on</button>
+      </div>
+      <p id="redirectMsg" class="tag" role="status"></p>
+      <p class="tag">The page you redirect to cannot be on your block list. The address is fixed while the mode is on.</p>
+    </section>
+
+    <section>
+      <h2>Shutdown mode</h2>
+      <p class="sub">When on, opening a page blocked by a <strong>forbidden</strong> site or keyword shuts this PC down after the countdown. Other blocked pages only show the block screen. Windows shows a warning, and apps with unsaved work get a chance to prompt. Turning it on is free; turning it off needs your password.</p>
+      <div class="row">
+        <label class="switch"><input id="shutdownToggle" type="checkbox"> Shut down when a forbidden site or keyword is hit</label>
+        <label>Countdown (seconds, 0 to 600) <input id="shutdownDelay" type="number" min="0" max="600" step="1" value="15"></label>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="checkLink" type="button" class="secondary">Check connection to the SiteBlocker app</button>
+        <span id="linkStatus" class="tag"></span>
+      </div>
+      <p class="tag">Shutting down needs the SiteBlocker Windows app to have been run once, so it can register the link with your browser. To cancel a countdown, run <code>shutdown /a</code> in a terminal. With a countdown of 0 the PC shuts down immediately and there is nothing to cancel.</p>
+    </section>
+
+    <section>
+      <h2>Backup</h2>
+      <p class="sub">Save your block list and settings to a file, or load them from one, for example on another browser. The file does not contain your password. It is plain text, so it lists the sites you block. Exporting is free; importing needs your password.</p>
+      <div class="row">
+        <button id="exportSettings" type="button">Export settings</button>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <label>Settings file <input id="importFile" type="file" accept=".json,application/json"></label>
+        <label>When importing
+          <select id="importMode">
+            <option value="merge">Merge: add to what I have</option>
+            <option value="replace">Replace: make it match the file</option>
+          </select>
+        </label>
+        <button id="importSettings" type="button">Import (password)</button>
+      </div>
+      <p class="tag">Merge never removes anything. Your rules win over the file's, and shutdown or redirect mode stay as they are if they are already on. Replace also removes rules, keywords and exceptions that are not in the file, and can switch shutdown or redirect mode off.</p>
+    </section>
+
+    <section id="appRulesSection" hidden>
+      <h2>Managed by the SiteBlocker app</h2>
+      <p class="sub">These come from the Windows app and can only be changed there.</p>
+      <table>
+        <thead><tr><th>Domain</th><th>Mode</th><th>Allowed paths</th></tr></thead>
+        <tbody id="appRuleRows"></tbody>
+      </table>
+    </section>
+  </div>
+</main>
+
+<dialog id="pwDialog">
+  <form method="dialog" id="pwForm">
+    <div id="pwMessage"></div>
+    <input id="pwInput" type="password" autocomplete="current-password">
+    <menu>
+      <button type="button" id="pwCancel" class="secondary">Cancel</button>
+      <button type="submit">OK</button>
+    </menu>
+  </form>
+</dialog>
+
+<script type="module" src="options.js"></script>
+</body>
+</html>

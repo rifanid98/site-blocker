@@ -1,0 +1,36 @@
+{
+  "app": "SiteBlocker",
+  "version": 1,
+  "exportedAt": "2026-11-08T18:45:45.775Z",
+  "localRules": [
+    {
+      "allowPaths": [
+        "/marketplace"
+      ],
+      "domain": "facebook.com",
+      "mode": "blockExcept"
+    }
+  ],
+  "keywords": [],
+  "forbiddenKeywords": [],
+  "keywordExempt": [
+    "github.com"
+  ],
+  "shutdown": {
+    "enabled": true,
+    "delaySeconds": 0
+  },
+  "redirect": {
+    "enabled": false,
+    "url": ""
+  },
+  "unlockTimer": {
+    "enabled": true,
+    "seconds": 10
+  },
+  "customPage": {
+    "enabled": false,
+    "html": "<h1>Not today.</h1>\n<p>{{host}} is on your block list.</p>\n<p class=\"small\">Go and do something you will be proud of instead.</p>",
+    "css": "body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; text-align: center; padding-top: 18vh; }\nh1 { font-size: 40px; margin: 0 0 12px; }\n.small { color: #94a3b8; }"
+  }
+}

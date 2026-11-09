@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{5AC11FB9-1EF1-445F-966D-E25C727A650C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SiteBlocker.Core", "src\SiteBlocker.Core\SiteBlocker.Core.csproj", "{FD9D5EE5-A2FA-4D8F-9E5E-52E3C689A6C2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{9E68E142-D0DA-4A83-BC38-869467FDC1B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SiteBlocker.Core.Tests", "tests\SiteBlocker.Core.Tests\SiteBlocker.Core.Tests.csproj", "{137EE352-9C93-4CF9-BED6-41BFB9C9AAFB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SiteBlocker.NativeHost", "src\SiteBlocker.NativeHost\SiteBlocker.NativeHost.csproj", "{AF305F5F-AA86-4FA5-8276-7FB87A05968F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SiteBlocker.Service", "src\SiteBlocker.Service\SiteBlocker.Service.csproj", "{7F523795-378B-4639-913D-B940F02CD7AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SiteBlocker.App", "src\SiteBlocker.App\SiteBlocker.App.csproj", "{E2F44339-7559-49B0-BDC5-C6A06F8C2138}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FD9D5EE5-A2FA-4D8F-9E5E-52E3C689A6C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD9D5EE5-A2FA-4D8F-9E5E-52E3C689A6C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD9D5EE5-A2FA-4D8F-9E5E-52E3C689A6C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD9D5EE5-A2FA-4D8F-9E5E-52E3C689A6C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{137EE352-9C93-4CF9-BED6-41BFB9C9AAFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{137EE352-9C93-4CF9-BED6-41BFB9C9AAFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{137EE352-9C93-4CF9-BED6-41BFB9C9AAFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{137EE352-9C93-4CF9-BED6-41BFB9C9AAFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF305F5F-AA86-4FA5-8276-7FB87A05968F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF305F5F-AA86-4FA5-8276-7FB87A05968F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF305F5F-AA86-4FA5-8276-7FB87A05968F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF305F5F-AA86-4FA5-8276-7FB87A05968F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F523795-378B-4639-913D-B940F02CD7AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F523795-378B-4639-913D-B940F02CD7AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F523795-378B-4639-913D-B940F02CD7AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F523795-378B-4639-913D-B940F02CD7AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E2F44339-7559-49B0-BDC5-C6A06F8C2138}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2F44339-7559-49B0-BDC5-C6A06F8C2138}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2F44339-7559-49B0-BDC5-C6A06F8C2138}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2F44339-7559-49B0-BDC5-C6A06F8C2138}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FD9D5EE5-A2FA-4D8F-9E5E-52E3C689A6C2} = {5AC11FB9-1EF1-445F-966D-E25C727A650C}
+		{137EE352-9C93-4CF9-BED6-41BFB9C9AAFB} = {9E68E142-D0DA-4A83-BC38-869467FDC1B2}
+		{AF305F5F-AA86-4FA5-8276-7FB87A05968F} = {5AC11FB9-1EF1-445F-966D-E25C727A650C}
+		{7F523795-378B-4639-913D-B940F02CD7AB} = {5AC11FB9-1EF1-445F-966D-E25C727A650C}
+		{E2F44339-7559-49B0-BDC5-C6A06F8C2138} = {5AC11FB9-1EF1-445F-966D-E25C727A650C}
+	EndGlobalSection
+EndGlobal
