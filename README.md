@@ -96,7 +96,7 @@ You need Windows, the .NET 8 SDK, and Node.js 22 (only to run the extension test
 
 1. **Build:** run `dotnet build` in the repository root. Close the desktop app first if it is running.
 2. **Start the desktop app** from `src\SiteBlocker.App\bin\Debug\net8.0-windows\SiteBlocker.App.exe`. It asks for administrator rights. Choose a password. It registers the native host for Chrome, Edge and Brave under your user account.
-3. **Load the extension:** open `chrome://extensions` (or `edge://extensions`, `brave://extensions`), turn on Developer mode, choose "Load unpacked" and pick the `extension` folder.
+3. **Load the extension:** open `chrome://extensions` (or `edge://extensions`, `brave://extensions`), turn on Developer mode, choose "Load unpacked" and pick the `extension` folder. To use a release instead, unzip `SiteBlocker-extension-v<version>.zip` into a folder you will keep and load that folder.
 4. **Open the options page** by clicking the extension's toolbar icon. Choose a password, then add sites and keywords.
 5. **Check the link:** in the Shutdown mode section, click "Check connection to the SiteBlocker app". It should say "Connected".
 
@@ -120,7 +120,7 @@ site-blocker/
 │   ├── manifest.json
 │   ├── src/                     background worker, options page, matcher, store, block page
 │   ├── test/                    JavaScript tests (node:test, jsdom)
-│   └── pack-for-store.ps1       builds dist/siteblocker-store.zip for the web stores
+│   └── pack.ps1                 builds the release zip and the web store zip into dist/
 ├── nuget.config                 uses nuget.org for this repository only
 └── SiteBlocker.sln
 ```
@@ -140,13 +140,17 @@ npm test                                    # JavaScript tests
 
 The matching rules exist in both languages: `src/SiteBlocker.Core/RuleMatcher.cs` and `extension/src/matcher.js`. Keep the two in sync.
 
-**Packaging for the web stores**
+**Packaging**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File extension\pack-for-store.ps1
+powershell -ExecutionPolicy Bypass -File extension\pack.ps1                  # release zip
+powershell -ExecutionPolicy Bypass -File extension\pack.ps1 -Target store    # web store zip
 ```
 
-This writes `dist/siteblocker-store.zip` without the development `key`, because the store assigns its own extension ID.
+- The release zip is `dist/SiteBlocker-extension-v<version>.zip`, where the version comes from `extension/manifest.json`. It is ready to unzip and "Load unpacked", and it contains a short `LOAD-ME.txt`. It keeps the manifest `key`, so the extension ID stays fixed and the Windows app's native host link keeps working. Attach it to a GitHub release.
+- The store zip is `dist/siteblocker-store.zip`. It has no `key`, because the store assigns its own extension ID.
+- Both zips contain only the manifest and `src/`: no tests and no `node_modules`. `dist/` is ignored by git.
+- Raise `version` in `extension/manifest.json` before packaging a new release.
 
 **Things that are easy to trip over**
 - The native host the browser starts is the copy next to the desktop app. After changing C# code, close the app and run `dotnet build`, or the browser keeps using an old host. Symptom: "Check connection" says the app "answered, but not as expected".
@@ -182,6 +186,7 @@ There is no installer. There is no licence file yet.
 
 | Date | Change |
 |---|---|
+| 2026-11-09 | Packaging: `pack-for-store.ps1` replaced by `pack.ps1`, which builds the release zip and the store zip. Getting started mentions loading the release zip. |
 | 2026-11-09 | First version of the README. |
 
 [↑ Back to page index](#page-index)
