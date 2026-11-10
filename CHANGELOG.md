@@ -1,3 +1,26 @@
+## [0.3.0] - 2026-11-10
+
+Adds focus mode, a Cancel button for keyword-triggered shutdowns, and a quick way to skip keyword blocking on a site you trust.
+
+### Added
+- Focus mode with weekly schedules, one-time ranges and one-click Start from a new toolbar popup, with day shortcuts and date and time pickers.
+- Three-way blocking setting (always, only during focus mode, off). Looser changes need the password.
+- A Cancel shutdown button on the block screen when a forbidden keyword (not a forbidden site) starts the countdown. A forbidden site still shuts down at once, and `shutdown /a` still works.
+- A toolbar popup toggle to skip keyword blocking on the current site. Turning it on needs the password, turning it off does not.
+- Forbidden sites and keywords are blurred in settings until revealed. Each list has its own Reveal button.
+- Native host request `cancelShutdown`, which runs `shutdown /a`.
+
+### Changed
+- Blocking applies only while it is active, and open tabs are checked when focus mode starts.
+- Settings export and import include focus settings.
+- Keyword-triggered shutdowns count down on the block screen, and Windows is asked only when the countdown ends.
+
+### Download
+- `SiteBlocker-extension-v0.3.0.zip`: unzip it, turn on Developer mode, and use "Load unpacked". It keeps the fixed extension ID `kpinpjjnhkllnpfpblbobpjbijjeadcd`, so an existing install and the Windows app link keep working.
+- The Windows app changed since v0.1.1 (cancel support in the native host), so rebuild it to use the Cancel button.
+
+[0.3.0]: https://github.com/rifanid98/site-blocker/compare/v0.1.1...v0.3.0
+
 ## [0.1.1] - 2026-11-10
 
 Fixes a limitation in keyword exceptions: you can now add an IP address or `localhost`, not only a domain.
