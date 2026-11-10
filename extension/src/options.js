@@ -139,7 +139,7 @@ function renderExemptions(domains) {
 async function addExemption() {
   try {
     const domain = $("exemptDomain").value;
-    const password = await askPassword(`Enter your password to stop checking ${domain.trim() || "this domain"} for keywords.`);
+    const password = await askPassword(`Enter your password to stop checking ${domain.trim() || "this domain or IP address"} for keywords.`);
     if (password === null) return;
 
     if (await store.addKeywordExemption(domain, password)) {

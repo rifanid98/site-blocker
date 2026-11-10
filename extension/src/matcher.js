@@ -17,6 +17,48 @@ export function normalizeDomain(input) {
   return value;
 }
 
+const IPV4_PATTERN = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+/** True for an IP-address entry (IPv4, or IPv6 in the brackets a URL host has). Those match exactly, never as a suffix. */
+export function isIpHost(entry) {
+  return IPV4_PATTERN.test(entry) || entry.startsWith("[");
+}
+
+/**
+ * What can go in the keyword exception list: a domain, an IPv4 or IPv6 address, or localhost. Scheme, port and path
+ * are dropped, so "http://192.168.1.10:3000/app" becomes "192.168.1.10". IPv6 comes back in brackets, as a URL host.
+ */
+export function normalizeExemptHost(input) {
+  if (typeof input !== "string" || input.trim() === "") throw new Error("Enter a domain or an IP address.");
+
+  let value = input.trim().toLowerCase();
+  const schemeEnd = value.indexOf("://");
+  if (schemeEnd >= 0) value = value.slice(schemeEnd + 3);
+  value = value.split(/[/?#]/)[0];
+
+  // IPv6: "[::1]", "[::1]:3000", or a bare "::1" (several colons, so it cannot be host:port)
+  const bracketed = value.startsWith("[");
+  if (bracketed || value.split(":").length > 2) {
+    const end = value.indexOf("]");
+    if (bracketed && end < 0) throw new Error(`'${input}' is not a valid IP address.`);
+    const inner = bracketed ? value.slice(1, end) : value;
+    try {
+      return new URL(`http://[${inner}]/`).hostname;
+    } catch {
+      throw new Error(`'${input}' is not a valid IP address.`);
+    }
+  }
+
+  value = value.split(":")[0]; // drop a port
+  if (IPV4_PATTERN.test(value)) {
+    if (value.split(".").some((octet) => Number(octet) > 255)) throw new Error(`'${input}' is not a valid IP address.`);
+    return new URL(`http://${value}/`).hostname;
+  }
+
+  if (value === "localhost") return value;
+  return normalizeDomain(value);
+}
+
 export function normalizeKeyword(input) {
   const value = typeof input === "string" ? input.trim().toLowerCase() : "";
   if (value.length < MIN_KEYWORD_LENGTH) {
@@ -111,7 +153,7 @@ export function matchKeywords(url, keywords, exemptDomains = []) {
   if (parsed === null || !keywords?.length) return [];
 
   const host = parsed.hostname.toLowerCase();
-  if (exemptDomains.some((domain) => hostMatches(host, domain))) return [];
+  if (exemptDomains.some((entry) => (isIpHost(entry) ? host === entry : hostMatches(host, entry)))) return [];
 
   const withoutScheme = url.slice(url.indexOf("://") + 3).toLowerCase();
   const candidates = [withoutScheme, safeDecode(withoutScheme.replace(/\+/g, " "))];

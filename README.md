@@ -48,7 +48,7 @@ Path exceptions, keywords and the modes live in the extension, because only a br
 - Single-page apps are handled: in-page navigation is checked, not only full page loads.
 - Only top-level page loads are blocked, never images or background requests, so allowed pages keep working.
 - Keywords: a case-insensitive "contains" match on the whole address (the `http` or `https` part is ignored). A keyword needs at least 2 characters.
-- Keyword exceptions: domains, and their subdomains, that are never checked for keywords. Site rules still apply to them.
+- Keyword exceptions: domains (with their subdomains), IP addresses and `localhost` that are never checked for keywords. An IP address matches exactly, on any port, which lets you keep a dev server like `192.168.1.10:3000` usable when a keyword appears in its address. Site rules still apply to them.
 
 **Modes** (each is a toggle in the options page)
 - **Forbidden flag:** mark a site or keyword as forbidden. Shutdown mode only acts on forbidden matches.
@@ -172,7 +172,7 @@ powershell -ExecutionPolicy Bypass -File extension\pack.ps1 -Target store    # w
 
 ## Status
 
-Automated tests pass (136 C# and 167 JavaScript). Tested by hand in a browser: the Facebook plus `/marketplace` exception and the block screen. Not yet tested end to end on a real machine:
+Automated tests pass (136 C# and 184 JavaScript). Tested by hand in a browser: the Facebook plus `/marketplace` exception and the block screen. Not yet tested end to end on a real machine:
 
 - A real shutdown triggered by a forbidden site or keyword.
 - The force-install browser policy, which needs a published store copy.
@@ -186,6 +186,7 @@ There is no installer. There is no licence file yet.
 
 | Date | Change |
 |---|---|
+| 2026-11-10 | Keyword exceptions now accept IP addresses and `localhost`, not only domains. |
 | 2026-11-09 | Packaging: `pack-for-store.ps1` replaced by `pack.ps1`, which builds the release zip and the store zip. Getting started mentions loading the release zip. |
 | 2026-11-09 | First version of the README. |
 

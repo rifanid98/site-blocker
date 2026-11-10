@@ -100,9 +100,9 @@
       <p id="noKeywords" class="empty" hidden>No keywords yet.</p>
 
       <h2 style="margin-top: 20px;">Keyword exceptions</h2>
-      <p class="sub">Websites listed here are never checked for keywords (their subdomains too), so a word like <code>av</code> will not block <code>github.com/.../wave-4</code>. Site rules still apply to them. Adding an exception needs your password; removing one does not.</p>
+      <p class="sub">Domains and IP addresses listed here are never checked for keywords, so a word like <code>av</code> will not block <code>github.com/.../wave-4</code>, and a keyword inside your dev IP such as <code>192.168.1.10</code> will not block it. A domain also covers its subdomains; an IP address matches exactly, on any port. <code>localhost</code> works too. Site rules still apply to them. Adding an exception needs your password; removing one does not.</p>
       <div class="row">
-        <label>Domain <input id="exemptDomain" placeholder="github.com" autocomplete="off"></label>
+        <label>Domain or IP address <input id="exemptDomain" placeholder="github.com or 192.168.1.10" autocomplete="off"></label>
         <button id="addExempt" type="button">Add exception (password)</button>
       </div>
       <div id="exemptChips" class="chips"></div>

@@ -1,4 +1,4 @@
-import { cleanAllowPaths, normalizeDomain, normalizeKeyword, normalizeRedirectUrl } from "./matcher.js";
+import { cleanAllowPaths, normalizeDomain, normalizeExemptHost, normalizeKeyword, normalizeRedirectUrl } from "./matcher.js";
 import {
   CUSTOM_PAGE_MAX_CHARS,
   SHUTDOWN_DEFAULT_SECONDS,
@@ -181,7 +181,7 @@ export function parseSettings(data) {
     localRules,
     keywords,
     forbiddenKeywords,
-    keywordExempt: unique(list(data.keywordExempt, "keywordExempt").map(normalizeDomain)),
+    keywordExempt: unique(list(data.keywordExempt, "keywordExempt").map(normalizeExemptHost)),
     shutdown: parseShutdown(data.shutdown),
     redirect: parseRedirect(data.redirect),
     unlockTimer: parseUnlockTimer(data.unlockTimer),

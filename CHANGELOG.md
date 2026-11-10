@@ -1,3 +1,11 @@
+## [0.1.1] - 2026-11-10
+
+### Fixed
+- Keyword exceptions now accept IP addresses (IPv4 and IPv6) and `localhost`, not only domains. A keyword inside a dev server address such as `192.168.1.10:3000` no longer blocks it once that IP is added as an exception. An IP matches exactly, on any port, and a domain still covers its subdomains.
+
+### Download
+- `SiteBlocker-extension-v0.1.1.zip`: unzip it, turn on Developer mode, and use "Load unpacked". It keeps the fixed extension ID `kpinpjjnhkllnpfpblbobpjbijjeadcd`.
+
 ## [0.1.0] - 2026-11-09
 
 First release of SiteBlocker, a self-control website blocker for Windows. A Chromium extension blocks the sites and keywords you list. A Windows desktop app adds whole-domain blocking and lets the extension shut the PC down. Removing or loosening anything needs a password.

@@ -1,5 +1,12 @@
 import { hashPassword, verifyPassword } from "./auth.js";
-import { cleanAllowPaths as cleanPaths, findBlockReason, normalizeDomain, normalizeKeyword, normalizeRedirectUrl } from "./matcher.js";
+import {
+  cleanAllowPaths as cleanPaths,
+  findBlockReason,
+  normalizeDomain,
+  normalizeExemptHost,
+  normalizeKeyword,
+  normalizeRedirectUrl,
+} from "./matcher.js";
 import {
   SHUTDOWN_DEFAULT_SECONDS,
   SHUTDOWN_MAX_SECONDS,
@@ -316,22 +323,22 @@ export class BlockStore {
   }
 
   /** Adding an exception loosens blocking, so it needs the password. */
-  async addKeywordExemption(domainInput, password) {
+  async addKeywordExemption(hostInput, password) {
     if (!(await this.verify(password))) return false;
 
-    const domain = normalizeDomain(domainInput);
+    const host = normalizeExemptHost(hostInput); // a domain, an IP address or localhost
     const exempt = await this.#read(KEYS.keywordExempt, []);
-    if (exempt.includes(domain)) throw new Error(`'${domain}' is already an exception.`);
+    if (exempt.includes(host)) throw new Error(`'${host}' is already an exception.`);
 
-    await this.storage.set(KEYS.keywordExempt, [...exempt, domain]);
+    await this.storage.set(KEYS.keywordExempt, [...exempt, host]);
     return true;
   }
 
   /** Removing an exception makes blocking stricter, so it is free. */
-  async removeKeywordExemption(domainInput) {
-    const domain = normalizeDomain(domainInput);
+  async removeKeywordExemption(hostInput) {
+    const host = normalizeExemptHost(hostInput);
     const exempt = await this.#read(KEYS.keywordExempt, []);
-    const next = exempt.filter((d) => d !== domain);
+    const next = exempt.filter((d) => d !== host);
     if (next.length === exempt.length) return false;
 
     await this.storage.set(KEYS.keywordExempt, next);
