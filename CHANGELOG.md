@@ -21,6 +21,26 @@ Adds focus mode, a Cancel button for keyword-triggered shutdowns, and a quick wa
 
 [0.3.0]: https://github.com/rifanid98/site-blocker/compare/v0.1.1...v0.3.0
 
+## [0.2.0] - 2026-11-10
+
+Adds focus mode: choose when your rules apply, and start it with one click from the toolbar.
+
+### Added
+- Three blocking settings: "On, always" (the default), "On, only during focus mode" and "Off". Moving to a looser setting needs the password.
+- Focus mode, started from the toolbar popup with one click (it stays on until ended with the password), on a weekly schedule, or for a one-time time range.
+- Toolbar popup to switch between Always on, Focus mode and Off, and to start or end focus mode.
+- Day buttons Monday to Sunday with Weekdays, Weekend, Every day and Clear shortcuts, and date and time pickers for one-time ranges.
+- Settings export and import include the focus mode setup. Merge keeps the stricter blocking setting.
+- Pages that are already open are checked when focus mode starts.
+
+### Changed
+- The toolbar icon now opens the focus mode popup instead of the options page.
+
+### Download
+- `SiteBlocker-extension-v0.2.0.zip`: unzip it, turn on Developer mode, and use "Load unpacked". It keeps the fixed extension ID `kpinpjjnhkllnpfpblbobpjbijjeadcd`, so an existing install and the Windows app link keep working.
+- The Windows app is unchanged, so you do not need to rebuild it.
+
+
 ## [0.1.1] - 2026-11-10
 
 Fixes a limitation in keyword exceptions: you can now add an IP address or `localhost`, not only a domain.
