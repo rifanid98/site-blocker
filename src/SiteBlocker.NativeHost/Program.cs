@@ -27,6 +27,7 @@ while (true)
     NativeMessaging.Write(output, reply.Json);
 
     if (reply.Shutdown is { } shutdown) RunShutdown(shutdown);
+    if (reply.CancelShutdown) RunShutdownTool(ShutdownCommand.AbortArguments);
 }
 
 static void RunShutdown(ShutdownRequest request)
@@ -35,9 +36,14 @@ static void RunShutdown(ShutdownRequest request)
         ? $"SiteBlocker: a blocked site was opened ({request.Host}). This PC is shutting down."
         : "SiteBlocker: a blocked site was opened. This PC is shutting down.";
 
+    RunShutdownTool(ShutdownCommand.Arguments(request.Seconds, message));
+}
+
+static void RunShutdownTool(string arguments)
+{
     try
     {
-        using var process = Process.Start(new ProcessStartInfo("shutdown.exe", ShutdownCommand.Arguments(request.Seconds, message))
+        using var process = Process.Start(new ProcessStartInfo("shutdown.exe", arguments)
         {
             CreateNoWindow = true,
             UseShellExecute = false,
@@ -46,6 +52,6 @@ static void RunShutdown(ShutdownRequest request)
     }
     catch (Exception)
     {
-        // A shutdown that is already in progress makes shutdown.exe fail; that is fine.
+        // A shutdown already in progress (or none to cancel) makes shutdown.exe fail; that is fine.
     }
 }

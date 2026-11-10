@@ -1,6 +1,7 @@
 import { BlockStore } from "./store.js";
 import { chromeStorage } from "./chromeStorage.js";
 import { renderCustomBlockPage } from "./blockPage.js";
+import { revealLabel, shouldBlur } from "./privacy.js";
 import { DAY_NAMES, combineDateTime, defaultRange, focusStatusText, needsPasswordToChange } from "./focus.js";
 
 const store = new BlockStore(chromeStorage);
@@ -55,6 +56,28 @@ function button(label, className, onClick) {
   return b;
 }
 
+// Forbidden sites and keywords stay blurred until revealed. Not saved: every page load starts hidden.
+// Each list has its own switch: revealing the sites does not reveal the keywords.
+const revealed = { revealRules: false, revealKeywords: false };
+
+function syncRevealButtons(hasForbidden) {
+  for (const id of ["revealRules", "revealKeywords"]) {
+    $(id).hidden = !hasForbidden[id];
+    $(id).textContent = revealLabel(revealed[id]);
+    $(id).setAttribute("aria-pressed", String(revealed[id]));
+  }
+}
+
+let lastForbidden = { revealRules: false, revealKeywords: false };
+
+function blurIfHidden(node, forbidden, listId) {
+  if (shouldBlur(forbidden, revealed[listId])) {
+    node.classList.add("blurred");
+    node.setAttribute("aria-hidden", "true");
+  }
+  return node;
+}
+
 function renderRules(rules) {
   const body = $("ruleRows");
   body.replaceChildren();
@@ -63,7 +86,7 @@ function renderRules(rules) {
   for (const rule of rules) {
     const row = document.createElement("tr");
     row.append(
-      cell(rule.domain),
+      blurIfHidden(cell(rule.domain), rule.forbidden, "revealRules"),
       cell(modeText(rule.mode)),
       cell(rule.allowPaths.join(", ")),
       cell(rule.forbidden ? "Yes" : ""),
@@ -71,13 +94,18 @@ function renderRules(rules) {
 
     const actions = cell("", "actions");
     actions.append(
-      button("Edit", "secondary", () => startEdit(rule)),
+      Object.assign(button("Edit", "secondary", () => startEdit(rule)), {
+        disabled: shouldBlur(rule.forbidden, revealed.revealRules),
+        title: shouldBlur(rule.forbidden, revealed.revealRules) ? "Reveal forbidden entries first." : "",
+      }),
       " ",
       button("Remove", "danger", () => removeRule(rule.domain)),
     );
     row.append(actions);
     body.append(row);
   }
+  lastForbidden.revealRules = rules.some((rule) => rule.forbidden);
+  syncRevealButtons(lastForbidden);
 }
 
 function renderKeywords(keywords, forbiddenKeywords) {
@@ -93,14 +121,19 @@ function renderKeywords(keywords, forbiddenKeywords) {
     const flag = button("⚑", forbidden ? "danger" : "secondary", () => toggleKeywordForbidden(keyword, !forbidden));
     flag.title = forbidden ? "Forbidden: triggers shutdown mode. Click to turn off (password)." : "Click to mark forbidden.";
     flag.setAttribute("aria-pressed", String(forbidden));
-    flag.setAttribute("aria-label", `${forbidden ? "Unmark" : "Mark"} ${keyword} as forbidden`);
+    flag.setAttribute("aria-label", forbidden ? "Unmark as forbidden" : `Mark ${keyword} as forbidden`);
 
     const remove = button("×", "danger", () => removeKeyword(keyword));
-    remove.setAttribute("aria-label", `Remove ${keyword}`);
+    remove.setAttribute("aria-label", forbidden ? "Remove keyword" : `Remove ${keyword}`);
 
-    chip.append(keyword, flag, remove);
+    const label = document.createElement("span");
+    label.textContent = keyword;
+    blurIfHidden(label, forbidden, "revealKeywords");
+    chip.append(label, flag, remove);
     chips.append(chip);
   }
+  lastForbidden.revealKeywords = keywords.some((keyword) => forbiddenKeywords.includes(keyword));
+  syncRevealButtons(lastForbidden);
 }
 
 async function toggleKeywordForbidden(keyword, forbidden) {
@@ -765,4 +798,11 @@ chrome.storage.onChanged.addListener(async (changes) => {
   if (changes.appRules) renderAppRules((await store.getState()).appRules);
   if (changes.focus) renderFocus(); // started or ended from the toolbar popup
 });
+for (const id of ["revealRules", "revealKeywords"]) {
+  $(id).addEventListener("click", () => {
+    revealed[id] = !revealed[id];
+    render();
+  });
+}
+
 render();

@@ -5,7 +5,7 @@ namespace SiteBlocker.Core;
 
 public sealed record ShutdownRequest(int Seconds, string Host);
 
-public sealed record NativeReply(string Json, ShutdownRequest? Shutdown);
+public sealed record NativeReply(string Json, ShutdownRequest? Shutdown, bool CancelShutdown = false);
 
 /// <summary>Chrome/Edge native messaging: 4-byte little-endian length prefix followed by UTF-8 JSON.</summary>
 public static class NativeMessaging
@@ -56,6 +56,8 @@ public static class NativeMessaging
                         return new NativeReply("{\"rules\":" + JsonConfigStore.RulesToExtensionJson(rules) + "}", null);
                     case "ping":
                         return new NativeReply("{\"ok\":true}", null);
+                    case "cancelShutdown":
+                        return new NativeReply("{\"ok\":true}", null, CancelShutdown: true);
                     case "shutdown":
                         var shutdown = new ShutdownRequest(ReadSeconds(root), SafeHost(root));
                         return new NativeReply("{\"ok\":true}", shutdown);

@@ -193,3 +193,18 @@ export function findBlockReason(url, rules, keywords, keywordExemptDomains = [],
 export function shouldShutDown(reason) {
   return reason?.forbidden === true;
 }
+
+/** True when a forbidden rule is what blocks this page (a forbidden path exception does not count). */
+export function blockedByForbiddenRule(url, rules) {
+  const parsed = parseHttpUrl(url);
+  if (parsed === null) return false;
+  return rules.some((rule) => rule.forbidden === true && ruleBlocking(parsed, [rule]) !== null);
+}
+
+/**
+ * Whether the user may cancel the pending shutdown: there must be time to do it, and it must come from a forbidden
+ * keyword. A forbidden domain always shuts down.
+ */
+export function canCancelShutdown(url, rules, delaySeconds) {
+  return delaySeconds > 0 && !blockedByForbiddenRule(url, rules);
+}

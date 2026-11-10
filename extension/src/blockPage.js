@@ -200,3 +200,61 @@ export function renderCountdownPage(blockedUrl, seconds, doc = document) {
 
   return true;
 }
+
+/**
+ * Draws a "shutting down" notice over the block screen. The countdown runs here, in the extension, not in Windows:
+ * Cancel just stops it, and only when it reaches zero is the extension asked to shut the PC down. It lives in a
+ * shadow root (closed unless a test asks for "open") so the blocked page's own scripts cannot click or read it.
+ * Does nothing if it is already there. Self-contained, like the other render functions, because it is injected.
+ */
+export function renderShutdownNotice(seconds, doc = document, mode = "closed") {
+  if (doc.getElementById("siteblocker-shutdown")) return;
+
+  const host = doc.createElement("div");
+  host.id = "siteblocker-shutdown";
+  host.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:2147483647;";
+  const root = host.attachShadow({ mode });
+
+  const box = doc.createElement("div");
+  box.style.cssText =
+    "margin:12px auto;max-width:460px;padding:14px 16px;border-radius:8px;background:#7f1d1d;color:#fff;" +
+    "font:14px/1.45 system-ui,sans-serif;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4);";
+  const text = doc.createElement("p");
+  text.style.cssText = "margin:0 0 10px;";
+  const cancel = doc.createElement("button");
+  cancel.type = "button";
+  cancel.textContent = "Cancel shutdown";
+  cancel.style.cssText =
+    "font:inherit;font-weight:600;padding:8px 14px;border-radius:6px;border:0;background:#fff;color:#7f1d1d;cursor:pointer;";
+  box.append(text, cancel);
+  root.append(box);
+  doc.body.append(host);
+
+  const end = Date.now() + seconds * 1000;
+  let timer = null;
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    if (left > 0) {
+      text.textContent = `This PC is shutting down in ${left} s.`;
+      return;
+    }
+    clearInterval(timer);
+    cancel.remove();
+    text.textContent = "This PC is shutting down.";
+    try {
+      const sent = chrome.runtime.sendMessage({ type: "shutdownNow" });
+      sent?.catch?.(() => {}); // the extension was reloaded: nothing left to tell
+    } catch {
+      // extension context invalidated
+    }
+  };
+  timer = setInterval(tick, 250);
+  timer.unref?.(); // Node (tests) only: a pending timer must not keep the process alive
+  tick();
+
+  cancel.addEventListener("click", () => {
+    clearInterval(timer);
+    cancel.remove();
+    text.textContent = "Shutdown cancelled. If this page is fine, open the SiteBlocker icon and turn on Skip keyword blocking for it.";
+  });
+}

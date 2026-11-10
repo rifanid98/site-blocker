@@ -1,7 +1,7 @@
-import { findBlockReason, shouldShutDown } from "./matcher.js";
+import { canCancelShutdown, findBlockReason, shouldShutDown } from "./matcher.js";
 import { BlockStore } from "./store.js";
 import { chromeStorage } from "./chromeStorage.js";
-import { BLOCK_PAGE_CSS, renderBlockPage, renderCountdownPage, renderCustomBlockPage } from "./blockPage.js";
+import { BLOCK_PAGE_CSS, renderBlockPage, renderCountdownPage, renderCustomBlockPage, renderShutdownNotice } from "./blockPage.js";
 import { createCooldownGate } from "./cooldownGate.js";
 import { shouldCountDown } from "./outcome.js";
 
@@ -51,7 +51,8 @@ async function showCountdownPage(tabId, url, seconds) {
 // after a countdown. The cooldown stops one blocked page (several navigation events) from firing repeated requests.
 const shutdownGate = createCooldownGate(30_000);
 
-async function maybeShutDown(url) {
+// `seconds` overrides the configured delay: the keyword path counts down on screen first and asks for 0 here.
+async function maybeShutDown(url, seconds) {
   const shutdown = await store.getShutdown();
   if (!shutdown.enabled || !shutdownGate.tryPass()) return;
 
@@ -59,11 +60,20 @@ async function maybeShutDown(url) {
     // Only the host name is sent, never the full address, so search text stays in the browser.
     await chrome.runtime.sendNativeMessage(NATIVE_HOST, {
       type: "shutdown",
-      seconds: shutdown.delaySeconds,
+      seconds: seconds ?? shutdown.delaySeconds,
       host: new URL(url).hostname,
     });
   } catch {
     // Native host missing: nothing we can do from here. The options page has a connection check.
+  }
+}
+
+// Draws the "shutting down" notice with a Cancel button on top of the block screen.
+async function showShutdownNotice(tabId, seconds) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, func: renderShutdownNotice, args: [seconds] });
+  } catch {
+    // The tab closed or navigated away.
   }
 }
 
@@ -94,10 +104,18 @@ async function sweepWhenFocusStarts() {
 
 // What a blocked page turns into: a redirect, or the block screen, plus a shutdown if something forbidden matched.
 async function applyBlock(tabId, url, state) {
-  await Promise.all([
-    respondToBlock(tabId, url, state),
-    shouldShutDown(state.reason) ? maybeShutDown(url) : undefined,
-  ]);
+  const shownPage = await respondToBlock(tabId, url, state);
+  if (!shouldShutDown(state.reason)) return;
+
+  // A shutdown that came from a forbidden keyword (not a forbidden domain) counts down on the block screen, where it
+  // can be cancelled; Windows is only asked when that countdown ends (see "shutdownNow"). Everything else shuts down
+  // straight away, with the configured delay.
+  const shutdown = await store.getShutdown();
+  if (shutdown.enabled && shownPage && canCancelShutdown(url, state.rules, shutdown.delaySeconds)) {
+    await showShutdownNotice(tabId, shutdown.delaySeconds);
+    return;
+  }
+  await maybeShutDown(url);
 }
 
 // Redirect mode sends the tab to the chosen page instead of showing the block screen. If that page has since
@@ -107,12 +125,13 @@ async function respondToBlock(tabId, url, { rules, keywords, keywordExempt, forb
   if (redirect.enabled && findBlockReason(redirect.url, rules, keywords, keywordExempt, forbiddenKeywords) === null) {
     try {
       await chrome.tabs.update(tabId, { url: redirect.url });
-      return;
+      return false;
     } catch {
       // fall through to the block screen
     }
   }
   await showBlockPage(tabId, url);
+  return true; // the block screen is on the tab
 }
 
 async function checkNavigation(details) {
@@ -153,10 +172,23 @@ async function finishUnlockCountdown(tabId, url) {
   }
 }
 
+// The block screen's shutdown countdown reached zero without being cancelled. The rules are checked again first, so
+// a site that was excepted while it ran, or a forbidden site, is handled correctly.
+async function finishShutdownCountdown(url) {
+  const state = await evaluate(url);
+  if (!shouldShutDown(state.reason)) return;
+  const shutdown = await store.getShutdown();
+  if (!shutdown.enabled || !canCancelShutdown(url, state.rules, shutdown.delaySeconds)) return;
+  await maybeShutDown(url, 0);
+}
+
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (sender.id !== chrome.runtime.id || sender.tab?.id === undefined) return;
   if (message?.type === "unlockCountdownDone" && typeof message.url === "string") {
     finishUnlockCountdown(sender.tab.id, message.url);
+  }
+  if (message?.type === "shutdownNow" && typeof sender.tab.url === "string") {
+    finishShutdownCountdown(sender.tab.url);
   }
 });
 

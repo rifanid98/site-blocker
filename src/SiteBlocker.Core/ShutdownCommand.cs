@@ -8,6 +8,9 @@ public static class ShutdownCommand
     public const int DefaultDelaySeconds = 15;
     private const int MaxMessageLength = 200;
 
+    /// <summary>Cancels a shutdown that is still counting down.</summary>
+    public const string AbortArguments = "/a";
+
     public static int ClampDelay(int seconds) => Math.Clamp(seconds, MinDelaySeconds, MaxDelaySeconds);
 
     public static string Arguments(int delaySeconds, string message)

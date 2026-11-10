@@ -130,3 +130,34 @@ public class NativeMessagingShutdownTests
         Assert.Null(reply.Shutdown);
     }
 }
+
+public class CancelShutdownTests
+{
+    private static NativeReply Handle(string request) => NativeMessaging.Handle(request, Array.Empty<BlockRule>());
+
+    [Fact]
+    public void AbortArguments_AreTheWindowsAbortSwitch()
+    {
+        Assert.Equal("/a", ShutdownCommand.AbortArguments);
+    }
+
+    [Fact]
+    public void CancelShutdown_Request_AsksTheHostToAbort_WithoutStartingAShutdown()
+    {
+        var reply = Handle("{\"type\":\"cancelShutdown\"}");
+
+        Assert.True(reply.CancelShutdown);
+        Assert.Null(reply.Shutdown);
+        Assert.Contains("\"ok\":true", reply.Json);
+    }
+
+    [Theory]
+    [InlineData("{\"type\":\"ping\"}")]
+    [InlineData("{\"type\":\"getRules\"}")]
+    [InlineData("{\"type\":\"shutdown\",\"seconds\":10,\"host\":\"a.com\"}")]
+    [InlineData("{\"type\":\"nope\"}")]
+    public void OtherRequests_NeverAbort(string request)
+    {
+        Assert.False(Handle(request).CancelShutdown);
+    }
+}

@@ -1,7 +1,7 @@
 import { BlockStore } from "./store.js";
 import { chromeStorage } from "./chromeStorage.js";
 import { focusStatusText } from "./focus.js";
-import { SCOPE_BUTTONS, planScopeChange, popupModel } from "./popupModel.js";
+import { SCOPE_BUTTONS, planScopeChange, popupModel, siteExemptModel } from "./popupModel.js";
 
 const store = new BlockStore(chromeStorage);
 const $ = (id) => document.getElementById(id);
@@ -26,7 +26,45 @@ function askForPassword(prompt, run) {
   $("password").value = "";
   $("confirm").hidden = false;
   $("controls").hidden = true; // one thing at a time
+  $("siteExempt").hidden = true;
   $("password").focus();
+}
+
+// The tab the popup was opened on, and what the site toggle would do for it.
+let site = null; // { tab, host, entry } or null
+
+async function renderSiteToggle(hasPassword) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const { keywordExempt } = await store.getState();
+  const model = hasPassword && tab?.url ? siteExemptModel(tab.url, keywordExempt) : null;
+  site = model && { tab, ...model };
+
+  $("siteExempt").hidden = site === null || !$("confirm").hidden;
+  if (!site) return;
+  $("siteHost").textContent = site.entry ?? site.host;
+  $("siteToggle").checked = site.entry !== null;
+}
+
+async function toggleSite() {
+  const wasChecked = !$("siteToggle").checked; // the state before this click
+  const { tab, host, entry } = site;
+  const reload = () => chrome.tabs.reload(tab.id).catch(() => {});
+
+  if (wasChecked) {
+    await store.removeKeywordExemption(entry); // blocking gets stricter: no password
+    setMessage(`Keyword blocking is back on for ${entry}.`, true);
+    await reload();
+    await render();
+    return;
+  }
+
+  $("siteToggle").checked = false; // stays off until the password is accepted
+  askForPassword(`Enter your password to skip keyword blocking on ${host}.`, async (password) => {
+    const result = await store.exemptSite(tab.url, host, password);
+    if (!result.ok) return { ok: false, text: result.error };
+    await reload();
+    return { ok: true, text: `Keyword blocking is skipped on ${result.host}.` };
+  });
 }
 
 function closeConfirm() {
@@ -42,6 +80,7 @@ async function render() {
 
   $("status").textContent = model.ready ? focusStatusText(focus) : model.message;
   $("controls").hidden = !model.ready || !$("confirm").hidden;
+  await renderSiteToggle(model.ready);
   if (!model.ready) return;
 
   for (const button of $("modes").children) {
@@ -117,6 +156,7 @@ for (const { scope, label, title } of SCOPE_BUTTONS) {
 }
 
 $("startEnd").addEventListener("click", startOrEnd);
+$("siteToggle").addEventListener("change", toggleSite);
 $("confirmBtn").addEventListener("click", confirm);
 $("password").addEventListener("keydown", (event) => event.key === "Enter" && confirm());
 $("cancelBtn").addEventListener("click", async () => {

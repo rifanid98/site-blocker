@@ -459,6 +459,30 @@ export class BlockStore {
     return true;
   }
 
+  /**
+   * Adds an exception for the page the user is looking at (the popup toggle). The host must be the page's own host or
+   * a parent domain, so the toggle can never exempt a different site. Never throws: problems come back as `error`.
+   */
+  async exemptSite(pageUrl, hostInput, password) {
+    let hostname;
+    try {
+      const parsed = new URL(pageUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error();
+      hostname = parsed.hostname.toLowerCase();
+    } catch {
+      return { ok: false, error: "This is not a web page." };
+    }
+
+    try {
+      const host = normalizeExemptHost(hostInput);
+      if (hostname !== host && !hostname.endsWith("." + host)) return { ok: false, error: `'${host}' does not cover this page.` };
+      if (!(await this.addKeywordExemption(host, password))) return { ok: false, error: "Wrong password. Nothing changed." };
+      return { ok: true, host };
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
+  }
+
   /** Removing an exception makes blocking stricter, so it is free. */
   async removeKeywordExemption(hostInput) {
     const host = normalizeExemptHost(hostInput);

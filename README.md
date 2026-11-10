@@ -1,4 +1,4 @@
-# SiteBlocker
+﻿# SiteBlocker
 
 A self-control website blocker for Windows. A Chromium extension blocks the sites and keywords you list, and a Windows desktop app adds whole-domain blocking and a link that lets the extension shut the PC down. Removing or loosening anything needs a password.
 
@@ -179,7 +179,7 @@ powershell -ExecutionPolicy Bypass -File extension\pack.ps1 -Target store    # w
 
 ## Status
 
-Automated tests pass (136 C# and 267 JavaScript). Tested by hand in a browser: the Facebook plus `/marketplace` exception and the block screen. Not yet tested end to end on a real machine:
+Automated tests pass (142 C# and 286 JavaScript). Tested by hand in a browser: the Facebook plus `/marketplace` exception and the block screen. Not yet tested end to end on a real machine:
 
 - A real shutdown triggered by a forbidden site or keyword.
 - The force-install browser policy, which needs a published store copy.
