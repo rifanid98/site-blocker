@@ -12,7 +12,7 @@ test("only forbidden entries are blurred, and only until they are revealed", () 
 });
 
 test("the reveal button says what it will do", () => {
-  assert.equal(revealLabel(false), "Reveal forbidden entries");
+  assert.equal(revealLabel(false), "Reveal forbidden entries (password)");
   assert.equal(revealLabel(true), "Hide forbidden entries");
 });
 

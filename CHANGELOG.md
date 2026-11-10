@@ -1,3 +1,21 @@
+## [0.3.1] - 2026-11-10
+
+Tightens how forbidden sites and keywords are hidden in settings.
+
+### Changed
+- Revealing forbidden sites or keywords now needs your password. Hiding them again is free, and each list reveals on its own.
+- Editing a blurred site asks for your password first, then shows it in the form. Hiding the sites list clears the form.
+- Password prompts and messages for forbidden entries no longer spell out the site or keyword ("this keyword", "this site").
+
+### Fixed
+- A keyword stayed blurred after you unflagged it, until you reveal its list, so unflagging no longer shows the word it was hiding.
+
+### Download
+- `SiteBlocker-extension-v0.3.1.zip`: unzip it, turn on Developer mode, and use "Load unpacked". It keeps the fixed extension ID `kpinpjjnhkllnpfpblbobpjbijjeadcd`, so an existing install and the Windows app link keep working.
+- The Windows app is unchanged since v0.3.0, so you do not need to rebuild it.
+
+[0.3.1]: https://github.com/rifanid98/site-blocker/compare/v0.3.0...v0.3.1
+
 ## [0.3.0] - 2026-11-10
 
 Adds focus mode, a Cancel button for keyword-triggered shutdowns, and a quick way to skip keyword blocking on a site you trust.

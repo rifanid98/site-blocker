@@ -70,8 +70,18 @@ function syncRevealButtons(hasForbidden) {
 
 let lastForbidden = { revealRules: false, revealKeywords: false };
 
-function blurIfHidden(node, forbidden, listId) {
-  if (shouldBlur(forbidden, revealed[listId])) {
+// An entry that was blurred stays blurred even after its forbidden flag is turned off, until the list is revealed:
+// otherwise unticking the flag would show the very word it was hiding.
+const keptHidden = { revealRules: new Set(), revealKeywords: new Set() };
+
+function isHidden(listId, forbidden, key) {
+  if (revealed[listId]) return false;
+  if (shouldBlur(forbidden, false)) keptHidden[listId].add(key);
+  return keptHidden[listId].has(key);
+}
+
+function blurIfHidden(node, forbidden, listId, key) {
+  if (isHidden(listId, forbidden, key)) {
     node.classList.add("blurred");
     node.setAttribute("aria-hidden", "true");
   }
@@ -86,7 +96,7 @@ function renderRules(rules) {
   for (const rule of rules) {
     const row = document.createElement("tr");
     row.append(
-      blurIfHidden(cell(rule.domain), rule.forbidden, "revealRules"),
+      blurIfHidden(cell(rule.domain), rule.forbidden, "revealRules", rule.domain),
       cell(modeText(rule.mode)),
       cell(rule.allowPaths.join(", ")),
       cell(rule.forbidden ? "Yes" : ""),
@@ -94,17 +104,21 @@ function renderRules(rules) {
 
     const actions = cell("", "actions");
     actions.append(
-      Object.assign(button("Edit", "secondary", () => startEdit(rule)), {
-        disabled: shouldBlur(rule.forbidden, revealed.revealRules),
-        title: shouldBlur(rule.forbidden, revealed.revealRules) ? "Reveal forbidden entries first." : "",
-      }),
+      Object.assign(
+        button("Edit", "secondary", async () => {
+          // Editing shows the domain in the form, so a blurred site is revealed first (with the password).
+          if (isHidden("revealRules", rule.forbidden, rule.domain) && !(await revealList("revealRules"))) return;
+          startEdit(rule);
+        }),
+        { title: isHidden("revealRules", rule.forbidden, rule.domain) ? "Asks for your password, then shows this site." : "" },
+      ),
       " ",
       button("Remove", "danger", () => removeRule(rule.domain)),
     );
     row.append(actions);
     body.append(row);
   }
-  lastForbidden.revealRules = rules.some((rule) => rule.forbidden);
+  lastForbidden.revealRules = rules.some((rule) => rule.forbidden) || keptHidden.revealRules.size > 0;
   syncRevealButtons(lastForbidden);
 }
 
@@ -128,11 +142,11 @@ function renderKeywords(keywords, forbiddenKeywords) {
 
     const label = document.createElement("span");
     label.textContent = keyword;
-    blurIfHidden(label, forbidden, "revealKeywords");
+    blurIfHidden(label, forbidden, "revealKeywords", keyword);
     chip.append(label, flag, remove);
     chips.append(chip);
   }
-  lastForbidden.revealKeywords = keywords.some((keyword) => forbiddenKeywords.includes(keyword));
+  lastForbidden.revealKeywords = keywords.some((keyword) => forbiddenKeywords.includes(keyword)) || keptHidden.revealKeywords.size > 0;
   syncRevealButtons(lastForbidden);
 }
 
@@ -140,15 +154,15 @@ async function toggleKeywordForbidden(keyword, forbidden) {
   try {
     if (forbidden) {
       await store.setKeywordForbidden(keyword, true);
-      setStatus(`"${keyword}" is now forbidden.`, "ok");
+      setStatus("The keyword is now forbidden.", "ok");
     } else {
-      const password = await askPassword(`Enter your password to stop treating "${keyword}" as forbidden.`);
+      const password = await askPassword("Enter your password to stop treating this keyword as forbidden.");
       if (password === null) return;
       if (!(await store.setKeywordForbidden(keyword, false, password))) {
         setStatus("Wrong password.", "error");
         return;
       }
-      setStatus(`"${keyword}" is no longer forbidden.`, "ok");
+      setStatus("The keyword is no longer forbidden.", "ok");
     }
     await render();
   } catch (error) {
@@ -612,12 +626,12 @@ async function saveRule() {
 }
 
 async function removeRule(domain) {
-  const password = await askPassword(`Enter your password to unblock ${domain}.`);
+  const password = await askPassword("Enter your password to unblock this site.");
   if (password === null) return;
 
   if (await store.removeRule(domain, password)) {
     if (editingDomain === domain) resetRuleForm();
-    setStatus(`Unblocked ${domain}.`, "ok");
+    setStatus("Site unblocked.", "ok");
     await render();
   } else {
     setStatus("Wrong password.", "error");
@@ -637,11 +651,11 @@ async function addKeyword() {
 }
 
 async function removeKeyword(keyword) {
-  const password = await askPassword(`Enter your password to remove the keyword "${keyword}".`);
+  const password = await askPassword("Enter your password to remove this keyword.");
   if (password === null) return;
 
   if (await store.removeKeyword(keyword, password)) {
-    setStatus(`Removed keyword "${keyword}".`, "ok");
+    setStatus("Keyword removed.", "ok");
     await render();
   } else {
     setStatus("Wrong password.", "error");
@@ -798,10 +812,30 @@ chrome.storage.onChanged.addListener(async (changes) => {
   if (changes.appRules) renderAppRules((await store.getState()).appRules);
   if (changes.focus) renderFocus(); // started or ended from the toolbar popup
 });
+// Hiding again is free; showing needs the password, because it exposes what you chose to keep private.
+async function revealList(id) {
+  const password = await askPassword("Enter your password to reveal the forbidden entries.");
+  if (password === null) return false;
+  if (!(await store.verify(password))) {
+    setStatus("Wrong password. They stay hidden.", "error");
+    return false;
+  }
+  revealed[id] = true;
+  keptHidden[id].clear();
+  await render();
+  return true;
+}
+
 for (const id of ["revealRules", "revealKeywords"]) {
-  $(id).addEventListener("click", () => {
-    revealed[id] = !revealed[id];
-    render();
+  $(id).addEventListener("click", async () => {
+    if (revealed[id]) {
+      revealed[id] = false;
+      // The site form may be showing a domain that is about to be blurred, so it is cleared with the list.
+      if (id === "revealRules") resetRuleForm();
+      render();
+    } else {
+      await revealList(id);
+    }
   });
 }
 
