@@ -1,10 +1,15 @@
 ## [0.1.1] - 2026-11-10
 
+Fixes a limitation in keyword exceptions: you can now add an IP address or `localhost`, not only a domain.
+
 ### Fixed
-- Keyword exceptions now accept IP addresses (IPv4 and IPv6) and `localhost`, not only domains. A keyword inside a dev server address such as `192.168.1.10:3000` no longer blocks it once that IP is added as an exception. An IP matches exactly, on any port, and a domain still covers its subdomains.
+- Keyword exceptions now accept IP addresses (IPv4 and IPv6) and `localhost`, not only domains. A keyword inside a dev server address such as `192.168.1.10:3000` no longer blocks it once that IP is added as an exception.
+- An IP address matches exactly, on any port, so `10.0.0.1` never exempts `110.0.0.1`. A domain still covers its subdomains.
+- IP and `localhost` exceptions are included in settings export and import.
 
 ### Download
-- `SiteBlocker-extension-v0.1.1.zip`: unzip it, turn on Developer mode, and use "Load unpacked". It keeps the fixed extension ID `kpinpjjnhkllnpfpblbobpjbijjeadcd`.
+- `SiteBlocker-extension-v0.1.1.zip`: unzip it, turn on Developer mode, and use "Load unpacked". It keeps the fixed extension ID `kpinpjjnhkllnpfpblbobpjbijjeadcd`, so an existing install and the Windows app link keep working.
+- The Windows app is unchanged since v0.1.0, so you do not need to rebuild it.
 
 ## [0.1.0] - 2026-11-09
 
@@ -33,3 +38,6 @@ First release of SiteBlocker, a self-control website blocker for Windows. A Chro
 - Not tamper-proof: anyone with Windows administrator rights can bypass it, and the extension can be removed from the browser unless it is force-installed from a store listing.
 - Chromium browsers only. Firefox is not supported.
 - Not yet tested end to end on a real machine: a real shutdown from a forbidden site or keyword, the force-install policy, and running the service as a Windows service.
+
+[0.1.1]: https://github.com/rifanid98/site-blocker/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/rifanid98/site-blocker/releases/tag/v0.1.0
