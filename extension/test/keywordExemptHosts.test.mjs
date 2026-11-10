@@ -121,6 +121,7 @@ test("IP and localhost exceptions survive export and import", () => {
     redirect: { enabled: false, url: "" },
     unlockTimer: { enabled: false, seconds: 10 },
     customPage: { enabled: false, html: "", css: "" },
+    focus: { scope: "always", schedules: [], ranges: [] },
   };
   assert.deepEqual(parseSettings(buildExport(settings)), settings);
 });

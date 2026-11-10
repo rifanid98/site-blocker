@@ -45,6 +45,26 @@
     dialog::backdrop { background: rgba(0, 0, 0, .5); }
     dialog form { display: flex; flex-direction: column; gap: 12px; }
     dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 0; padding: 0; }
+    /* Weekly schedule days: seven equal buttons in one row, Monday first, so they never wrap unevenly. */
+    .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+    .day { position: relative; cursor: pointer; }
+    .day input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .day span { display: block; padding: 9px 0; text-align: center; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+    .day input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .day input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+    button.small { padding: 4px 10px; font-size: 13px; }
+
+    /* One-time range: a date picker and a time picker for each end. */
+    .rangeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+    .rangeField { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .fieldLabel { font-size: 13px; color: var(--muted); }
+    .dateTime { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 6px; }
+    .dateTime input { width: 100%; min-width: 0; }
+    .rangeGrid > button { grid-column: 1 / -1; justify-self: start; }
+
+    /* A class that sets display would otherwise beat the hidden attribute and show the element. */
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
@@ -64,6 +84,78 @@
   </section>
 
   <div id="app" hidden>
+    <section>
+      <h2>Focus mode</h2>
+      <p class="sub">Choose when your rules apply. <strong>On, always</strong> is the default: your rules apply all the time and focus mode has no effect. <strong>On, only during focus mode</strong> applies your rules (blocking and every mode below) only while focus mode is on, which you start with one click from the toolbar icon, on a weekly schedule, or for a one-time time range. <strong>Off</strong> turns blocking off completely. Moving to a looser setting (from "On, always" to either of the others, or from "On, only during focus mode" to "Off") and ending focus mode need your password. Moving to a stricter setting, and starting focus mode, do not.</p>
+      <p id="focusStatus" class="tag"></p>
+      <div class="row">
+        <label>Blocking
+          <select id="focusScope">
+            <option value="always">On, always</option>
+            <option value="focus">On, only during focus mode</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+        <button id="focusToggle" type="button" hidden>Start</button>
+      </div>
+      <p id="focusMsg" class="tag" role="status"></p>
+
+      <div id="focusDetails" hidden>
+      <h2 style="margin-top: 20px;">Weekly schedules</h2>
+      <p class="tag">Focus mode turns on by itself on these days and times. A schedule whose end is earlier than its start runs overnight, for example 22:00 to 06:00. Adding is free; removing needs your password.</p>
+      <div class="days" role="group" aria-label="Days of the week">
+        <label class="day"><input class="focusDay" type="checkbox" value="1"><span>Mon</span></label>
+        <label class="day"><input class="focusDay" type="checkbox" value="2"><span>Tue</span></label>
+        <label class="day"><input class="focusDay" type="checkbox" value="3"><span>Wed</span></label>
+        <label class="day"><input class="focusDay" type="checkbox" value="4"><span>Thu</span></label>
+        <label class="day"><input class="focusDay" type="checkbox" value="5"><span>Fri</span></label>
+        <label class="day"><input class="focusDay" type="checkbox" value="6"><span>Sat</span></label>
+        <label class="day"><input class="focusDay" type="checkbox" value="0"><span>Sun</span></label>
+      </div>
+      <div class="presets">
+        <button type="button" class="secondary small" data-days="1,2,3,4,5">Weekdays</button>
+        <button type="button" class="secondary small" data-days="6,0">Weekend</button>
+        <button type="button" class="secondary small" data-days="1,2,3,4,5,6,0">Every day</button>
+        <button id="clearDays" type="button" class="secondary small">Clear</button>
+      </div>
+      <div class="row" style="margin-top: 8px;">
+        <label>From <input id="schedStart" type="time" value="09:00" step="60"></label>
+        <label>To <input id="schedEnd" type="time" value="17:00" step="60"></label>
+        <button id="addSchedule" type="button">Add schedule</button>
+      </div>
+      <table>
+        <thead><tr><th>Days</th><th>Time</th><th></th></tr></thead>
+        <tbody id="scheduleRows"></tbody>
+      </table>
+      <p id="noSchedules" class="empty" hidden>No schedules yet.</p>
+
+      <h2 style="margin-top: 20px;">One-time ranges</h2>
+      <p class="tag">Focus mode runs once, from the start to the end you choose. A range disappears by itself when it ends.</p>
+      <div class="rangeGrid">
+        <div class="rangeField">
+          <span class="fieldLabel">From</span>
+          <div class="dateTime">
+            <input id="rangeStartDate" type="date" aria-label="From date">
+            <input id="rangeStartTime" type="time" step="60" aria-label="From time">
+          </div>
+        </div>
+        <div class="rangeField">
+          <span class="fieldLabel">To</span>
+          <div class="dateTime">
+            <input id="rangeEndDate" type="date" aria-label="To date">
+            <input id="rangeEndTime" type="time" step="60" aria-label="To time">
+          </div>
+        </div>
+        <button id="addRange" type="button">Add range</button>
+      </div>
+      <table>
+        <thead><tr><th>From</th><th>To</th><th></th></tr></thead>
+        <tbody id="rangeRows"></tbody>
+      </table>
+      <p id="noRanges" class="empty" hidden>No ranges yet.</p>
+      </div>
+    </section>
+
     <section>
       <h2>Blocked sites</h2>
       <div class="row">

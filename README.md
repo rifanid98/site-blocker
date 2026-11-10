@@ -23,6 +23,7 @@ It is built to make your own impulses harder to act on. It is not tamper-proof s
 - Blocks any web address that contains a keyword you list, including search queries.
 - Can shut the PC down, redirect to a page you choose, or show a fake "unlocking" countdown before the block screen appears.
 - Lets you replace the block screen with your own HTML and CSS.
+- Can apply your rules only during **focus mode**, which you start with one click, on a weekly schedule, or for a one-time time range.
 - Asks for a password before you can remove a rule or switch a mode off.
 
 [↑ Back to page index](#page-index)
@@ -51,6 +52,7 @@ Path exceptions, keywords and the modes live in the extension, because only a br
 - Keyword exceptions: domains (with their subdomains), IP addresses and `localhost` that are never checked for keywords. An IP address matches exactly, on any port, which lets you keep a dev server like `192.168.1.10:3000` usable when a keyword appears in its address. Site rules still apply to them.
 
 **Modes** (each is a toggle in the options page)
+- **Blocking setting and focus mode:** choose "On, always" (the default, nothing changes), "On, only during focus mode", or "Off". With "On, only during focus mode", blocking and every mode below act only while focus mode is on. With "Off", nothing blocks and no mode acts. The toolbar popup switches between the three settings (Always on, Focus mode, Off) and starts or ends focus mode; the options page has the same controls plus the schedules and ranges. Focus mode is on when you start it (click the toolbar icon, then Start, which stays on until you end it with your password), inside a weekly schedule (chosen days and times, overnight allowed), or inside a one-time time range. Pages that are already open are checked when focus mode starts, and a countdown still running when it ends lets the page open.
 - **Forbidden flag:** mark a site or keyword as forbidden. Shutdown mode only acts on forbidden matches.
 - **Shutdown mode:** opening a forbidden site or keyword starts `shutdown /s` after a countdown of 0 to 600 seconds. It never uses `/f`, so apps with unsaved work get a chance to prompt. Only the host name is sent to the app, not the full address. Needs the desktop app to have been run once.
 - **Redirect mode:** a blocked page goes to the address you set instead of showing the block screen. The target cannot itself be on the block list.
@@ -85,6 +87,10 @@ Adding things that make blocking stricter is free. Anything that loosens it need
 | Switch the custom page on or off, or edit it | No |
 | Export settings | No |
 | Import settings | Yes |
+| Start focus mode, or add a focus schedule or time range | No |
+| End focus mode, or remove a schedule or time range | Yes |
+| Move the blocking setting to a looser one ("On, always" to "On, only during focus mode" or "Off", or "On, only during focus mode" to "Off") | Yes |
+| Move the blocking setting to a stricter one | No |
 
 The extension and the desktop app each keep their own password.
 
@@ -166,13 +172,14 @@ powershell -ExecutionPolicy Bypass -File extension\pack.ps1 -Target store    # w
 - **Chromium only.** Firefox is not supported.
 - **Short keywords match a lot.** A keyword like `av` also matches `wave`, `travel` and `avatar`. Use keyword exceptions, or longer keywords.
 - **Shutdown can be cancelled** while the countdown runs, by running `shutdown /a`. With a countdown of 0 there is nothing to cancel.
+- **Focus mode relies on this computer's clock and time zone,** and a schedule or range is noticed within about a minute. A block screen that is already showing stays until you navigate, even after focus mode ends. With "On, only during focus mode" nothing is blocked outside focus mode, and with "Off" nothing is blocked at all, so the protection is only as strong as the setting you choose. Focus mode does not touch the Windows app: whole-domain blocks it writes to the hosts file apply all the time.
 - **Passwords are local.** The password is stored hashed (PBKDF2-SHA256, 200,000 iterations) in each place that needs it. If you forget it, there is no reset.
 
 [↑ Back to page index](#page-index)
 
 ## Status
 
-Automated tests pass (136 C# and 184 JavaScript). Tested by hand in a browser: the Facebook plus `/marketplace` exception and the block screen. Not yet tested end to end on a real machine:
+Automated tests pass (136 C# and 267 JavaScript). Tested by hand in a browser: the Facebook plus `/marketplace` exception and the block screen. Not yet tested end to end on a real machine:
 
 - A real shutdown triggered by a forbidden site or keyword.
 - The force-install browser policy, which needs a published store copy.
@@ -186,6 +193,9 @@ There is no installer. There is no licence file yet.
 
 | Date | Change |
 |---|---|
+| 2026-11-10 | Toolbar popup switches the three blocking settings; schedule days are a fixed Monday-first row; one-time ranges use a date picker and a time picker. |
+| 2026-11-10 | Blocking setting now has three values (On always, On only during focus mode, Off), with the password rule for moving to a looser one. |
+| 2026-11-10 | Documented focus mode (scope, one-click start, weekly schedules, one-time ranges), its password rules and limits. |
 | 2026-11-10 | Keyword exceptions now accept IP addresses and `localhost`, not only domains. |
 | 2026-11-09 | Packaging: `pack-for-store.ps1` replaced by `pack.ps1`, which builds the release zip and the store zip. Getting started mentions loading the release zip. |
 | 2026-11-09 | First version of the README. |

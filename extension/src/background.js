@@ -69,8 +69,27 @@ async function maybeShutDown(url) {
 
 async function evaluate(url) {
   const state = await store.getEffective();
-  const reason = findBlockReason(url, state.rules, state.keywords, state.keywordExempt, state.forbiddenKeywords);
+  // Focus mode: with the "only during focus mode" scope, nothing is blocked (and no mode acts) outside focus mode.
+  // This also covers a countdown that is still running when focus mode ends: the page then opens for real.
+  const applies = await store.rulesApplyNow();
+  const reason = applies ? findBlockReason(url, state.rules, state.keywords, state.keywordExempt, state.forbiddenKeywords) : null;
   return { ...state, reason };
+}
+
+// When focus mode starts (one click, a schedule or a range), pages that are already open are checked too, instead
+// of waiting for the next navigation. The previous state is kept in session storage so only a start triggers it.
+async function sweepWhenFocusStarts() {
+  const applying = await store.rulesApplyNow();
+  const { focusWasApplying = true } = await chrome.storage.session.get("focusWasApplying");
+  await chrome.storage.session.set({ focusWasApplying: applying });
+  if (!applying || focusWasApplying) return;
+
+  const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"] });
+  await Promise.all(
+    tabs
+      .filter((tab) => tab.id !== undefined && tab.url)
+      .map((tab) => checkNavigation({ frameId: 0, tabId: tab.id, url: tab.url })),
+  );
 }
 
 // What a blocked page turns into: a redirect, or the block screen, plus a shutdown if something forbidden matched.
@@ -147,12 +166,26 @@ chrome.webNavigation.onCommitted.addListener(checkNavigation);
 chrome.webNavigation.onDOMContentLoaded.addListener(checkNavigation);
 chrome.webNavigation.onHistoryStateUpdated.addListener(checkNavigation);
 
-chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
+// The toolbar icon opens the popup (one-click focus mode), so there is no click handler here.
 
-chrome.runtime.onInstalled.addListener(syncRulesFromApp);
-chrome.runtime.onStartup.addListener(syncRulesFromApp);
+// A one-click start, or any change to focus mode made in the options page or popup.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.focus) sweepWhenFocusStarts();
+});
 
+chrome.runtime.onInstalled.addListener(() => {
+  syncRulesFromApp();
+  sweepWhenFocusStarts();
+});
+chrome.runtime.onStartup.addListener(() => {
+  syncRulesFromApp();
+  sweepWhenFocusStarts();
+});
+
+// Once a minute: refresh the Windows app's rules, and notice a schedule or time range that has just started.
 chrome.alarms.create("sync-rules", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "sync-rules") syncRulesFromApp();
+  if (alarm.name !== "sync-rules") return;
+  syncRulesFromApp();
+  sweepWhenFocusStarts();
 });

@@ -109,6 +109,7 @@ test("forbidden keywords survive export and parse", () => {
     redirect: { enabled: false, url: "" },
     unlockTimer: { enabled: false, seconds: 10 },
     customPage: { enabled: false, html: "", css: "" },
+    focus: { scope: "always", schedules: [], ranges: [] },
   };
   assert.deepEqual(parseSettings(buildExport(settings)), settings);
 });

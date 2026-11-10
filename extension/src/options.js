@@ -1,6 +1,7 @@
 import { BlockStore } from "./store.js";
 import { chromeStorage } from "./chromeStorage.js";
 import { renderCustomBlockPage } from "./blockPage.js";
+import { DAY_NAMES, combineDateTime, defaultRange, focusStatusText, needsPasswordToChange } from "./focus.js";
 
 const store = new BlockStore(chromeStorage);
 const $ = (id) => document.getElementById(id);
@@ -169,6 +170,161 @@ function renderAppRules(rules) {
     row.append(cell(rule.domain), cell(modeText(rule.mode)), cell((rule.allowPaths ?? []).join(", ")));
     body.append(row);
   }
+}
+
+// --- Focus mode ---------------------------------------------------------------------------------------------
+
+const formatTime = (millis) => new Date(millis).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
+
+async function renderFocus() {
+  const focus = await store.getFocus();
+  $("focusScope").value = focus.scope;
+  $("focusStatus").textContent = focusStatusText(focus);
+  $("focusToggle").textContent = focus.manualOn ? "End focus mode (password)" : "Start";
+
+  // Start, the schedules and the ranges only matter when the rules apply "Only during focus mode", so they only show then.
+  const focusChosen = focus.scope === "focus";
+  $("focusToggle").hidden = !focusChosen;
+  $("focusDetails").hidden = !focusChosen;
+
+  const scheduleRows = $("scheduleRows");
+  scheduleRows.replaceChildren();
+  $("noSchedules").hidden = focus.schedules.length > 0;
+  for (const schedule of focus.schedules) {
+    const row = document.createElement("tr");
+    const days = MONDAY_FIRST.filter((day) => schedule.days.includes(day)).map((day) => DAY_NAMES[day]).join(", ");
+    const actions = cell("", "actions");
+    actions.append(button("Remove", "danger", () => removeSchedule(schedule.id)));
+    row.append(cell(days), cell(`${schedule.start} to ${schedule.end}`), actions);
+    scheduleRows.append(row);
+  }
+
+  const rangeRows = $("rangeRows");
+  rangeRows.replaceChildren();
+  $("noRanges").hidden = focus.ranges.length > 0;
+  for (const range of focus.ranges) {
+    const row = document.createElement("tr");
+    const actions = cell("", "actions");
+    actions.append(button("Remove", "danger", () => removeRange(range.id)));
+    row.append(cell(formatTime(range.start)), cell(formatTime(range.end)), actions);
+    rangeRows.append(row);
+  }
+}
+
+const SCOPE_CHANGED = {
+  always: "Blocking is on. Your rules always apply.",
+  focus: "Blocking is on only during focus mode.",
+  off: "Blocking is off.",
+};
+
+async function changeFocusScope() {
+  const wanted = $("focusScope").value;
+  try {
+    const current = (await store.getFocus()).scope;
+
+    // Moving to a looser setting weakens the rules, so it asks for the password. A stricter one does not.
+    let password;
+    if (needsPasswordToChange(current, wanted)) {
+      password = await askPassword(
+        wanted === "off" ? "Enter your password to turn blocking off." : "Enter your password to apply your rules only during focus mode.",
+      );
+      if (password === null) {
+        setInline("focusMsg", "Nothing changed.", "error");
+        await renderFocus();
+        return;
+      }
+    }
+
+    if (await store.setFocusScope(wanted, password)) setInline("focusMsg", SCOPE_CHANGED[wanted], "ok");
+    else setInline("focusMsg", "Wrong password. Nothing changed.", "error");
+  } catch (error) {
+    setInline("focusMsg", error.message, "error");
+  }
+  await renderFocus(); // snaps the selector back to the real value if the change was refused
+}
+
+async function toggleFocus() {
+  try {
+    const focus = await store.getFocus();
+    if (!focus.manualOn) {
+      await store.startFocus();
+      setInline("focusMsg", "Focus mode started.", "ok");
+    } else {
+      const password = await askPassword("Enter your password to end focus mode.");
+      if (password !== null && (await store.stopFocus(password))) {
+        setInline("focusMsg", "Focus mode ended.", "ok");
+      } else {
+        setInline("focusMsg", password === null ? "Focus mode stays on." : "Wrong password. Focus mode stays on.", "error");
+      }
+    }
+  } catch (error) {
+    setInline("focusMsg", error.message, "error");
+  }
+  await renderFocus();
+}
+
+async function addSchedule() {
+  try {
+    const days = [...document.querySelectorAll(".focusDay:checked")].map((box) => Number(box.value));
+    await store.addFocusSchedule({ days, start: $("schedStart").value, end: $("schedEnd").value });
+    for (const box of document.querySelectorAll(".focusDay")) box.checked = false;
+    setInline("focusMsg", "Schedule added.", "ok");
+  } catch (error) {
+    setInline("focusMsg", error.message, "error");
+  }
+  await renderFocus();
+}
+
+async function removeSchedule(id) {
+  const password = await askPassword("Enter your password to remove this schedule.");
+  if (password === null) return;
+  const removed = await store.removeFocusSchedule(id, password);
+  setInline("focusMsg", removed ? "Schedule removed." : "Wrong password.", removed ? "ok" : "error");
+  await renderFocus();
+}
+
+/** Pre-fills the range pickers with "from the next five minutes, for an hour", so most of the time only a tweak is needed. */
+function resetRangeInputs() {
+  const range = defaultRange(new Date());
+  $("rangeStartDate").value = range.startDate;
+  $("rangeStartTime").value = range.startTime;
+  $("rangeEndDate").value = range.endDate;
+  $("rangeEndTime").value = range.endTime;
+}
+
+async function addRange() {
+  try {
+    // Date and time are read as the user's local time, like the pickers show them.
+    await store.addFocusRange({
+      start: combineDateTime($("rangeStartDate").value, $("rangeStartTime").value),
+      end: combineDateTime($("rangeEndDate").value, $("rangeEndTime").value),
+    });
+    resetRangeInputs();
+    setInline("focusMsg", "Range added.", "ok");
+  } catch (error) {
+    setInline("focusMsg", error.message, "error");
+  }
+  await renderFocus();
+}
+
+// Weekdays, Weekend and Every day tick the matching day buttons in one click.
+function pickDays(preset) {
+  const wanted = new Set(preset.split(",").map(Number));
+  for (const box of document.querySelectorAll(".focusDay")) box.checked = wanted.has(Number(box.value));
+}
+
+// Clear unticks every day, so a new schedule can be started from nothing.
+function clearDays() {
+  for (const box of document.querySelectorAll(".focusDay")) box.checked = false;
+}
+
+async function removeRange(id) {
+  const password = await askPassword("Enter your password to remove this time range.");
+  if (password === null) return;
+  const removed = await store.removeFocusRange(id, password);
+  setInline("focusMsg", removed ? "Range removed." : "Wrong password.", removed ? "ok" : "error");
+  await renderFocus();
 }
 
 async function renderUnlock() {
@@ -368,6 +524,7 @@ async function render() {
   renderKeywords(state.keywords, state.forbiddenKeywords);
   renderExemptions(state.keywordExempt);
   renderAppRules(state.appRules);
+  await renderFocus();
   await renderUnlock();
   await renderCustomPage();
   await renderRedirect();
@@ -568,6 +725,17 @@ $("exportSettings").addEventListener("click", exportSettings);
 $("importSettings").addEventListener("click", importSettings);
 $("addExempt").addEventListener("click", addExemption);
 $("exemptDomain").addEventListener("keydown", (e) => e.key === "Enter" && addExemption());
+$("focusScope").addEventListener("change", changeFocusScope);
+$("focusToggle").addEventListener("click", toggleFocus);
+$("addSchedule").addEventListener("click", addSchedule);
+$("addRange").addEventListener("click", addRange);
+for (const preset of document.querySelectorAll("[data-days]")) {
+  preset.addEventListener("click", () => pickDays(preset.dataset.days));
+}
+$("clearDays").addEventListener("click", clearDays);
+resetRangeInputs();
+// Schedules and ranges start and end by themselves, so keep the status sentence and lists current.
+setInterval(() => renderFocus().catch(() => {}), 20_000);
 $("unlockToggle").addEventListener("change", toggleUnlock);
 $("customToggle").addEventListener("change", toggleCustomPage);
 $("customSave").addEventListener("click", saveCustomPage);
@@ -595,5 +763,6 @@ $("domain").addEventListener("keydown", (e) => e.key === "Enter" && saveRule());
 // so a full re-render on any storage change would just wipe whatever is being typed (it runs once a minute).
 chrome.storage.onChanged.addListener(async (changes) => {
   if (changes.appRules) renderAppRules((await store.getState()).appRules);
+  if (changes.focus) renderFocus(); // started or ended from the toolbar popup
 });
 render();

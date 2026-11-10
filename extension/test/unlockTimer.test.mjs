@@ -76,6 +76,7 @@ test("the unlock countdown survives export and parse", () => {
     redirect: { enabled: false, url: "" },
     unlockTimer: { enabled: true, seconds: 30 },
     customPage: { enabled: false, html: "", css: "" },
+    focus: { scope: "always", schedules: [], ranges: [] },
   };
   assert.deepEqual(parseSettings(buildExport(settings)), settings);
 });

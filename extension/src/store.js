@@ -16,6 +16,7 @@ import {
   UNLOCK_MIN_SECONDS,
 } from "./constants.js";
 import { buildExport, isValidUnlockSeconds, parseSettings, validateCustomPage } from "./settingsFile.js";
+import { FOCUS_SCOPES, needsPasswordToChange, rulesApplyNow, strictest, validateRange, validateSchedule } from "./focus.js";
 
 export { SHUTDOWN_DEFAULT_SECONDS, SHUTDOWN_MAX_SECONDS, SHUTDOWN_MIN_SECONDS };
 
@@ -30,7 +31,10 @@ const KEYS = {
   redirect: "redirect", // { enabled, url }
   unlockTimer: "unlockTimer", // { enabled, seconds }: fake "unlocking" countdown before the block outcome
   customPage: "customPage", // { enabled, html, css }: replaces the built-in block screen
+  focus: "focus", // { scope, manualOn, schedules, ranges }: see focus.js
 };
+
+const sameContent = (a, b) => JSON.stringify({ ...a, id: undefined }) === JSON.stringify({ ...b, id: undefined });
 
 /** A rule as stored. The forbidden key exists only when true, so ordinary rules look the same as before. */
 function makeRule(domain, mode, allowPaths, forbidden) {
@@ -188,9 +192,103 @@ export class BlockStore {
     await this.storage.set(KEYS.customPage, validateCustomPage(value));
   }
 
+  /** Focus mode state. Ranges that have already ended are left out (they no longer matter). `now` is epoch milliseconds. */
+  async getFocus(now = Date.now()) {
+    const stored = await this.#read(KEYS.focus, null);
+    return {
+      scope: FOCUS_SCOPES.includes(stored?.scope) ? stored.scope : "always",
+      manualOn: stored?.manualOn === true,
+      schedules: stored?.schedules ?? [],
+      ranges: (stored?.ranges ?? []).filter((range) => range.end > now),
+    };
+  }
+
+  /** Whether the user's rules are enforced right now (always, or only while focus mode is active). */
+  async rulesApplyNow(now = new Date()) {
+    return rulesApplyNow(await this.getFocus(now.getTime()), now);
+  }
+
+  /** One click. Turning focus mode on only ever makes blocking stricter, so it is free. */
+  async startFocus() {
+    await this.storage.set(KEYS.focus, { ...(await this.getFocus()), manualOn: true });
+  }
+
+  /** Ending focus mode loosens things, so it needs the password. */
+  async stopFocus(password) {
+    if (!(await this.verify(password))) return false;
+
+    const focus = await this.getFocus();
+    if (!focus.manualOn) return false;
+
+    await this.storage.set(KEYS.focus, { ...focus, manualOn: false });
+    return true;
+  }
+
+  /**
+   * "always" is the strictest scope, then "focus" (rules only during focus mode), then "off" (no rules at all).
+   * Moving to a looser scope weakens the user's own rules, so it needs the password. Moving to a stricter one is free.
+   */
+  async setFocusScope(scope, password = undefined) {
+    if (!FOCUS_SCOPES.includes(scope)) throw new Error(`Unknown scope '${scope}'.`);
+
+    const focus = await this.getFocus();
+    if (focus.scope === scope) return true;
+    if (needsPasswordToChange(focus.scope, scope) && !(await this.verify(password))) return false;
+
+    await this.storage.set(KEYS.focus, { ...focus, scope });
+    return true;
+  }
+
+  async addFocusSchedule(input) {
+    const schedule = validateSchedule(input);
+    const focus = await this.getFocus();
+    if (focus.schedules.some((existing) => sameContent(existing, schedule))) {
+      throw new Error("That schedule is already in the list.");
+    }
+
+    const added = { id: crypto.randomUUID(), ...schedule };
+    await this.storage.set(KEYS.focus, { ...focus, schedules: [...focus.schedules, added] });
+    return added;
+  }
+
+  async removeFocusSchedule(id, password) {
+    if (!(await this.verify(password))) return false;
+
+    const focus = await this.getFocus();
+    const schedules = focus.schedules.filter((schedule) => schedule.id !== id);
+    if (schedules.length === focus.schedules.length) return false;
+
+    await this.storage.set(KEYS.focus, { ...focus, schedules });
+    return true;
+  }
+
+  async addFocusRange(input, now = Date.now()) {
+    const range = validateRange(input);
+    if (range.end <= now) throw new Error("That time range is already over.");
+
+    const focus = await this.getFocus(now);
+    if (focus.ranges.some((existing) => sameContent(existing, range))) throw new Error("That time range is already in the list.");
+
+    const added = { id: crypto.randomUUID(), ...range };
+    await this.storage.set(KEYS.focus, { ...focus, ranges: [...focus.ranges, added] });
+    return added;
+  }
+
+  async removeFocusRange(id, password, now = Date.now()) {
+    if (!(await this.verify(password))) return false;
+
+    const focus = await this.getFocus(now);
+    const ranges = focus.ranges.filter((range) => range.id !== id);
+    if (ranges.length === focus.ranges.length) return false;
+
+    await this.storage.set(KEYS.focus, { ...focus, ranges });
+    return true;
+  }
+
   /** Everything the user set up, ready to save as a file. Leaves out the password hash and the Windows app's rules. */
-  async exportSettings() {
+  async exportSettings(now = Date.now()) {
     const { localRules, keywords, forbiddenKeywords, keywordExempt } = await this.getState();
+    const focus = await this.getFocus(now);
     return buildExport({
       localRules,
       keywords,
@@ -200,6 +298,11 @@ export class BlockStore {
       redirect: await this.getRedirect(),
       unlockTimer: await this.getUnlockTimer(),
       customPage: await this.getCustomPage(),
+      focus: {
+        scope: focus.scope,
+        schedules: focus.schedules.map(({ id, ...schedule }) => schedule), // ids are internal, and manualOn is a live switch
+        ranges: focus.ranges.map(({ id, ...range }) => range),
+      },
     });
   }
 
@@ -209,7 +312,7 @@ export class BlockStore {
    * "replace" makes the settings match the file. The whole file is validated before anything is written.
    * @returns false on a wrong password, otherwise a summary of what is now stored. Throws on a bad file.
    */
-  async importSettings(data, mode, password) {
+  async importSettings(data, mode, password, now = Date.now()) {
     if (mode !== "merge" && mode !== "replace") {
       throw new Error(`Unknown import mode '${mode}'. Use "merge" or "replace".`);
     }
@@ -217,6 +320,7 @@ export class BlockStore {
 
     const incoming = parseSettings(data);
     const current = await this.getState();
+    const currentFocus = await this.getFocus(now);
     const currentShutdown = await this.getShutdown();
     const currentRedirect = await this.getRedirect();
     const currentUnlock = await this.getUnlockTimer();
@@ -240,6 +344,26 @@ export class BlockStore {
       };
     }
 
+    // Focus mode. Ranges that have already ended are not imported. Merge keeps what exists and adds what is missing, and
+    // the stricter scope ("always") wins. Replace takes the file's. The manual on/off switch is live state, never imported.
+    const incomingRanges = incoming.focus.ranges.filter((range) => range.end > now);
+    const withIds = (items) => items.map((item) => ({ id: crypto.randomUUID(), ...item }));
+    const missing = (items, have) => items.filter((item) => !have.some((existing) => sameContent(existing, item)));
+    const nextFocus =
+      mode === "replace"
+        ? {
+            scope: incoming.focus.scope,
+            manualOn: currentFocus.manualOn,
+            schedules: withIds(incoming.focus.schedules),
+            ranges: withIds(incomingRanges),
+          }
+        : {
+            scope: strictest(currentFocus.scope, incoming.focus.scope),
+            manualOn: currentFocus.manualOn,
+            schedules: [...currentFocus.schedules, ...withIds(missing(incoming.focus.schedules, currentFocus.schedules))],
+            ranges: [...currentFocus.ranges, ...withIds(missing(incomingRanges, currentFocus.ranges))],
+          };
+
     // The redirect target must not be blocked by the lists we are about to store, or tabs would loop.
     if (next.redirect.enabled) {
       const rules = [...current.appRules, ...next.localRules];
@@ -256,6 +380,7 @@ export class BlockStore {
     await this.storage.set(KEYS.redirect, next.redirect);
     await this.storage.set(KEYS.unlockTimer, next.unlockTimer);
     await this.storage.set(KEYS.customPage, next.customPage);
+    await this.storage.set(KEYS.focus, nextFocus);
 
     return {
       mode,

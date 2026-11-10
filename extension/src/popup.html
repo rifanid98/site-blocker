@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiteBlocker</title>
+  <style>
+    :root { --bg: #f8fafc; --text: #0f172a; --muted: #64748b; --line: #e2e8f0; --accent: #2563eb; --danger: #dc2626; --ok: #15803d; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0b1220; --text: #f1f5f9; --muted: #94a3b8; --line: #243049; --accent: #60a5fa; --danger: #f87171; --ok: #4ade80; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 330px; padding: 16px; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+    h1 { font-size: 16px; margin: 0 0 6px; }
+    p { margin: 0 0 12px; color: var(--muted); }
+    button, input { font: inherit; width: 100%; padding: 9px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+    button { cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    button.danger { background: transparent; color: var(--danger); border-color: var(--danger); font-weight: 600; }
+    button.link { background: transparent; border: 0; color: var(--muted); width: auto; padding: 4px 0; text-decoration: underline; }
+    .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+    .mode { padding: 9px 4px; font-size: 13px; }
+    .mode[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #confirmText { margin: 0; color: var(--text); }
+    #msg { min-height: 1.3em; margin: 4px 0 8px; color: var(--danger); }
+    #msg.ok { color: var(--ok); }
+    /* A class that sets display (like .stack) would otherwise beat the hidden attribute and show the element. */
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>SiteBlocker</h1>
+  <p id="status"></p>
+
+  <div id="controls" class="stack" hidden>
+    <div id="modes" class="modes" role="group" aria-label="Blocking"></div>
+    <button id="startEnd" type="button" hidden></button>
+  </div>
+
+  <div id="confirm" class="stack" hidden>
+    <p id="confirmText"></p>
+    <input id="password" type="password" placeholder="Your password" autocomplete="current-password">
+    <div class="two">
+      <button id="confirmBtn" type="button" class="primary">Confirm</button>
+      <button id="cancelBtn" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <p id="msg" role="status"></p>
+  <button id="settings" type="button" class="link">Open settings</button>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

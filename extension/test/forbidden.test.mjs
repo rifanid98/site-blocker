@@ -91,6 +91,7 @@ test("the flag survives export and parse, and false stays out of the file", () =
     redirect: { enabled: false, url: "" },
     unlockTimer: { enabled: false, seconds: 10 },
     customPage: { enabled: false, html: "", css: "" },
+    focus: { scope: "always", schedules: [], ranges: [] },
   };
   assert.deepEqual(parseSettings(buildExport(settings)), settings);
 });

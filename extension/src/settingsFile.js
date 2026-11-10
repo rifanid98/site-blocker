@@ -14,6 +14,9 @@ export const SETTINGS_VERSION = 1;
 export const MAX_ITEMS = 1000;
 
 /** The export file. It never contains the password hash or the rules that come from the Windows app. */
+import { FOCUS_SCOPES, validateRange, validateSchedule } from "./focus.js";
+
+export const DEFAULT_FOCUS = { scope: "always", schedules: [], ranges: [] };
 export const DEFAULT_UNLOCK_TIMER = { enabled: false, seconds: UNLOCK_DEFAULT_SECONDS };
 export const DEFAULT_CUSTOM_PAGE = { enabled: false, html: "", css: "" };
 
@@ -27,6 +30,7 @@ export function buildExport(
     redirect,
     unlockTimer = DEFAULT_UNLOCK_TIMER,
     customPage = DEFAULT_CUSTOM_PAGE,
+    focus = DEFAULT_FOCUS,
   },
   now = new Date(),
 ) {
@@ -42,6 +46,7 @@ export function buildExport(
     redirect,
     unlockTimer,
     customPage,
+    focus,
   };
 }
 
@@ -150,6 +155,29 @@ export function validateCustomPage(value) {
   return { enabled: value.enabled, html, css };
 }
 
+function parseFocus(value) {
+  if (value === undefined) return { scope: "always", schedules: [], ranges: [] };
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error('"focus" must be an object.');
+
+  const scope = value.scope ?? "always";
+  if (!FOCUS_SCOPES.includes(scope)) throw new Error('"focus" scope must be "always", "focus" or "off".');
+
+  const checked = (validate, label) => (entry) => {
+    try {
+      return validate(entry);
+    } catch (error) {
+      throw new Error(`Focus ${label}: ${error.message}`);
+    }
+  };
+  const unique = (entries) => [...new Map(entries.map((entry) => [JSON.stringify(entry), entry])).values()];
+
+  return {
+    scope,
+    schedules: unique(list(value.schedules, "focus schedules").map(checked(validateSchedule, "schedule"))),
+    ranges: unique(list(value.ranges, "focus ranges").map(checked(validateRange, "range"))),
+  };
+}
+
 function parseCustomPage(value) {
   return value === undefined ? { ...DEFAULT_CUSTOM_PAGE } : validateCustomPage(value);
 }
@@ -186,5 +214,6 @@ export function parseSettings(data) {
     redirect: parseRedirect(data.redirect),
     unlockTimer: parseUnlockTimer(data.unlockTimer),
     customPage: parseCustomPage(data.customPage),
+    focus: parseFocus(data.focus),
   };
 }
